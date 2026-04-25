@@ -1,0 +1,27 @@
+export const ApprovableRoleList = [
+  'HR_SECTION_CHIEF', //这是劳动人事科科长  可以审批
+  'ORG_PRINCIPAL', //这是车间负责人  可以审批
+  'UNIT_LEADER', //单位领导 可以审批
+  'PARTY_SECRETARY', //党委书记 可以审批
+  'STATIONMASTER', // 站长 可以审批
+  'DEPUTY_STATIONMASTER' //主管站长 可以审批
+]
+
+export const commonRoleList = [
+  'ATTENDANCE_ADMIN', // 普通管理员
+]
+
+export const superRoleList = [
+  'SYSTEM_ADMIN', //这是超级管理员,
+]
+
+export const allRoles = {
+  'SYSTEM_ADMIN': '超级管理员',
+  'ATTENDANCE_ADMIN' : '普通管理员',
+  'HR_SECTION_CHIEF' : '劳动人事科科长',
+  'ORG_PRINCIPAL' : '车间负责人',
+  'UNIT_LEADER' : '单位领导',
+  'PARTY_SECRETARY' : '党委书记',
+  'STATIONMASTER' : '站长',
+  'DEPUTY_STATIONMASTER': '主管站长'
+}
