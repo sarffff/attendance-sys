@@ -6,7 +6,6 @@ const Dashboard = () => {
     const userInfo  = useAppSelector((state) => state.user.userInfo);
     const isSuperRole = superRoleList.includes(userInfo?.roleCode);
 
-
     return isSuperRole ? <SuperAdmin /> : <OtherRole />;
 };
 

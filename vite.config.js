@@ -22,11 +22,6 @@ export default defineConfig(({ mode }) => {
 
       proxy: apiBaseUrl
         ? {
-          '/api': {
-            target: apiBaseUrl,
-            changeOrigin: true,
-            secure: false,
-          },
           '/files': {
             target: apiBaseUrl,
             changeOrigin: true,
@@ -36,24 +31,24 @@ export default defineConfig(({ mode }) => {
         : undefined,
     },
 
-    build: {
-      minify: 'terser',
-      sourcemap: false,
-      chunkSizeWarningLimit: 1500,
-      terserOptions: {
-        compress: {
-          drop_console: true,
-          drop_debugger: true,
-        },
-      },
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            react: ['react', 'react-dom', 'react-router-dom'],
-            vendor: ['axios'],
-          },
-        },
-      },
-    }
+    // build: {
+    //   minify: 'terser',
+    //   sourcemap: false,
+    //   chunkSizeWarningLimit: 1500,
+    //   terserOptions: {
+    //     compress: {
+    //       drop_console: true,
+    //       drop_debugger: true,
+    //     },
+    //   },
+    //   rollupOptions: {
+    //     output: {
+    //       manualChunks: {
+    //         react: ['react', 'react-dom', 'react-router-dom'],
+    //         vendor: ['axios'],
+    //       },
+    //     },
+    //   },
+    // }
   }
 })

@@ -20,7 +20,8 @@ const Login = () => {
 
     const onFinish = async (values) => {
         setLoading(true);
-        const data = await loginApi({
+        try {
+             const data = await loginApi({
             username: values.username,
             // password: encryptMD5(values.password),
             password: values.password,
@@ -34,6 +35,11 @@ const Login = () => {
         message.success("欢迎回来，登录成功");
         navigate("/");
         setLoading(false);
+        } catch (error) {
+            message.error(error.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (

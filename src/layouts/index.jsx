@@ -1,23 +1,40 @@
 import React, { useState } from 'react';
-import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, Badge, theme,message } from 'antd';
+import {
+  Layout,
+  Menu,
+  Button,
+  Avatar,
+  Dropdown,
+  Typography,
+  theme,
+  message,
+  Modal,
+  Form,
+  Input,
+} from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   LogoutOutlined,
   UserOutlined,
-  BellOutlined,
+  FormOutlined,
   RightOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { logout } from '@/store/modules/user';
 import { ApprovableRoleList } from '@/constants/roleCode';
 import { menuConfig } from '@/config/menuConfig';
+import { userResetPasswordApi } from '@/api/super_admin';
 const { Header, Sider, Content } = Layout;
 const { Text, Title } = Typography;
 
 const AppLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordForm] = Form.useForm();
   const user = useAppSelector((state) => state.user.userInfo);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -30,20 +47,59 @@ const AppLayout = () => {
     navigate('/login');
   };
 
-const menuItems = menuConfig
-    .filter(item =>
-        item.roles === null ||
-        item.roles.includes(user?.roleCode)
+  const openPasswordModal = () => {
+    passwordForm.resetFields();
+    setPasswordModalOpen(true);
+  };
+
+  const handlePasswordSubmit = async () => {
+    try {
+      const values = await passwordForm.validateFields();
+      const userId = user?.userId || user?.id;
+
+      if (!userId) {
+        message.error('未获取到当前用户信息');
+        return;
+      }
+
+      setPasswordLoading(true);
+      await userResetPasswordApi(userId, values);
+      message.success('密码修改成功');
+      setPasswordModalOpen(false);
+      passwordForm.resetFields();
+      handleLogout();
+    } catch (err) {
+      if (err?.errorFields) return;
+      message.error(err?.message || '密码修改失败');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const menuItems = menuConfig
+    .filter(
+      (item) => item.roles === null || item.roles.includes(user?.roleCode),
     )
-   .map(({ key, icon, label }) => ({
-    key,
-    icon: React.createElement(icon),
-    label: <span style={styles.menuLabel}>{label}</span>,
-}));
+    .map(({ key, icon, label }) => ({
+      key,
+      icon: React.createElement(icon),
+      label: <span style={styles.menuLabel}>{label}</span>,
+    }));
 
   const dropdownItems = [
-    { key: '1', label: '个人设置', icon: <UserOutlined /> },
-    { key: '2', label: '退出登录', icon: <LogoutOutlined />, onClick: handleLogout, danger: true },
+    {
+      key: '1',
+      label: '修改密码',
+      icon: <FormOutlined />,
+      onClick: openPasswordModal,
+    },
+    {
+      key: '2',
+      label: '退出登录',
+      icon: <LogoutOutlined />,
+      onClick: handleLogout,
+      danger: true,
+    },
   ];
 
   return (
@@ -94,8 +150,6 @@ const menuItems = menuConfig
           style={styles.menu}
           inlineCollapsed={collapsed}
         />
-
-
       </Sider>
 
       <Layout style={styles.mainLayout}>
@@ -110,32 +164,96 @@ const menuItems = menuConfig
           </div>
 
           <div style={styles.headerRight}>
-
-              <Dropdown menu={{ items: dropdownItems }} placement="bottomRight">
-                <div style={styles.userProfile}>
-                  <Avatar
-                    size={40}
-                    src={user?.avatar}
-                    icon={<UserOutlined />}
-                    style={styles.userAvatar}
-                  />
-                  <div style={styles.userInfoText}>
-                    <Text strong style={styles.userName}>{user?.username || '管理员'}</Text>
-                    <Text style={styles.userSubName}>{user?.empName || '系统用户'}</Text>
-                  </div>
-                  <RightOutlined style={styles.userArrow} />
+            <Dropdown menu={{ items: dropdownItems }} placement="bottomRight">
+              <div style={styles.userProfile}>
+                <Avatar
+                  size={40}
+                  src={user?.avatar}
+                  icon={<UserOutlined />}
+                  style={styles.userAvatar}
+                />
+                <div style={styles.userInfoText}>
+                  <Text strong style={styles.userName}>
+                    {user?.username || '管理员'}
+                  </Text>
+                  <Text style={styles.userSubName}>
+                    {user?.empName || '系统用户'}
+                  </Text>
                 </div>
-              </Dropdown>
+                <RightOutlined style={styles.userArrow} />
+              </div>
+            </Dropdown>
           </div>
         </Header>
 
         <Content style={styles.content}>
-          <div style={{ ...styles.pageWrapper, borderColor: token.colorBorderSecondary }}>
+          <div
+            style={{
+              ...styles.pageWrapper,
+              borderColor: token.colorBorderSecondary,
+            }}
+          >
             <div style={styles.pageInnerGlow} />
             <Outlet />
           </div>
         </Content>
       </Layout>
+
+      <Modal
+        title={
+          <span style={styles.modalTitle}>
+            <LockOutlined style={styles.modalTitleIcon} />
+            修改密码
+          </span>
+        }
+        open={passwordModalOpen}
+        onOk={handlePasswordSubmit}
+        onCancel={() => setPasswordModalOpen(false)}
+        confirmLoading={passwordLoading}
+        okText="确认修改"
+        cancelText="取消"
+        width={420}
+        destroyOnHidden
+        styles={{ body: { paddingTop: 8 } }}
+      >
+        <Form form={passwordForm} layout="vertical" requiredMark="optional">
+          <Form.Item
+            label="新密码"
+            name="newPassword"
+            rules={[
+              { required: true, message: '请输入新密码' },
+              { min: 6, max: 16, message: '密码必须在6-16个字符之间' },
+            ]}
+          >
+            <Input.Password
+              placeholder="请输入新密码"
+              style={styles.passwordInput}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label="确认新密码"
+            name="confirmPassword"
+            dependencies={['newPassword']}
+            rules={[
+              { required: true, message: '请再次输入新密码' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('newPassword') === value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error('两次密码输入不一致'));
+                },
+              }),
+            ]}
+          >
+            <Input.Password
+              placeholder="请再次输入新密码"
+              style={styles.passwordInput}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Layout>
   );
 };
@@ -155,7 +273,8 @@ const styles = {
     width: 320,
     height: 320,
     borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(59,130,246,0.18) 0%, rgba(59,130,246,0) 72%)',
+    background:
+      'radial-gradient(circle, rgba(59,130,246,0.18) 0%, rgba(59,130,246,0) 72%)',
     pointerEvents: 'none',
     zIndex: 0,
   },
@@ -166,7 +285,8 @@ const styles = {
     width: 360,
     height: 360,
     borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(16,185,129,0.12) 0%, rgba(16,185,129,0) 72%)',
+    background:
+      'radial-gradient(circle, rgba(16,185,129,0.12) 0%, rgba(16,185,129,0) 72%)',
     pointerEvents: 'none',
     zIndex: 0,
   },
@@ -234,7 +354,8 @@ const styles = {
     margin: '6px 6px 18px',
     padding: '16px 16px 15px',
     borderRadius: 20,
-    background: 'linear-gradient(135deg, #eff6ff 0%, #f8fbff 55%, #ffffff 100%)',
+    background:
+      'linear-gradient(135deg, #eff6ff 0%, #f8fbff 55%, #ffffff 100%)',
     border: '1px solid #dbeafe',
     boxShadow: '0 10px 30px rgba(59, 130, 246, 0.08)',
   },
@@ -347,6 +468,17 @@ const styles = {
     fontSize: 12,
     color: '#94a3b8',
   },
+  modalTitle: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modalTitleIcon: {
+    color: '#2563eb',
+  },
+  passwordInput: {
+    borderRadius: 8,
+  },
   content: {
     padding: '22px',
     overflowY: 'auto',
@@ -369,7 +501,8 @@ const styles = {
     width: 240,
     height: 240,
     borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(96,165,250,0.14) 0%, rgba(96,165,250,0) 72%)',
+    background:
+      'radial-gradient(circle, rgba(96,165,250,0.14) 0%, rgba(96,165,250,0) 72%)',
     pointerEvents: 'none',
   },
 };

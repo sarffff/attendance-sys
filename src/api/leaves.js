@@ -42,6 +42,23 @@ export const leacesApplyApi = (data) => {
   })
 }
 
+//编辑请假申请
+export const leacesEditApi = (leaveId, data) => {
+  return request({
+    url: `/leaves/${leaveId}`,
+    method: 'PUT',
+    data
+  })
+}
+
+//删除请假申请
+export const leacesDeleteApi = (leaveId) => {
+  return request({
+    url: `/leaves/${leaveId}`,
+    method: 'DELETE'
+  })
+}
+
 //审批请假申请
 export const leacesApproveApi = (leaveId, formData) => {
   return request({
@@ -86,10 +103,19 @@ export const leacesSelectLeaderListApi = (leaveId) => {
   })
 }
 
-//打印请假单
+//打印单个请假单
 export const leacesPrintApi = (leaveId) => {
   return request({
     url: `/leaves/${leaveId}/pdf`,
     method: 'GET'
+  })
+}
+
+//打印多个请假单
+export const leacesBatchPrintApi = (data) => {
+  return request({
+    url: '/leaves/pdf/batch',
+    method: 'POST',
+    data
   })
 }

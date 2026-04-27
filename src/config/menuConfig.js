@@ -15,7 +15,6 @@ import {
 } from '@/constants/roleCode';
 
 import LoadingPage from '@/components/LoadingPage';
-
 const Dashboard = lazy(() => import('@/pages/dashboard'));
 const Approval = lazy(() => import('@/pages/approvaLeave'));
 const InitiateLeave = lazy(() => import('@/pages/initiateLeave'));
@@ -24,7 +23,7 @@ const UserSettings = lazy(() => import('@/pages/user_settings'));
 const ApproveSettings = lazy(() => import('@/pages/approve_settings'));
 
 const withSuspense = (Component) => {
-     React.createElement(
+    return  React.createElement(
         Suspense,
         {
             fallback: React.createElement(LoadingPage),
