@@ -609,7 +609,6 @@ const UserSettings = () => {
               <Input
                 prefix={<UserOutlined style={{ color: '#bbb' }} />}
                 placeholder="请输入用户名"
-                disabled={!!editRecord}
                 style={{ borderRadius: 8 }}
               />
             </Form.Item>

@@ -11,11 +11,12 @@ export const applicantType = {
 }
 
 export const leave_step = {
-  1: 'ORG_PRINCIPAL',
+  1: ['ORG_PRINCIPAL','HR_SECTION_CHIEF'],
   2: 'HR_SECTION_CHIEF',
-  3: 'ORG_PRINCIPAL',
+  3: ['ORG_PRINCIPAL','HR_SECTION_CHIEF'],
   4: ['STATIONMASTER', 'DEPUTY_STATIONMASTER'],
-  5: 'PARTY_SECRETARY',
+  5: ['PARTY_SECRETARY', 'STATIONMASTER','ORG_PRINCIPAL'],
+  6: 'PARTY_SECRETARY',
   99: 'ORG_PRINCIPAL'
 }
 
@@ -38,3 +39,5 @@ export const leaveScopeMap = {
   'SICK': '病假',
   'OTHER' : '其他'
 }
+
+export const SpecialLeaveTypes = ['年休假','病假','事假','丧假','搬家假']

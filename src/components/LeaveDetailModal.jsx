@@ -1,6 +1,6 @@
 import { Modal, Descriptions, Tag, Steps, Card, Divider, Badge } from 'antd';
 import { formatTime } from '../utils/formatTime';
-import { applicantType } from '@/constants/constantsMap';
+import { applicantType,SpecialLeaveTypes } from '@/constants/constantsMap';
 
 const LeaveDetailModal = ({ open, onCancel, data, extra = null }) => {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -12,6 +12,18 @@ const LeaveDetailModal = ({ open, onCancel, data, extra = null }) => {
     APPROVED: { color: 'green', text: '已通过' },
     REJECTED: { color: 'red', text: '已拒绝' },
   };
+
+  const judgeCurrentStep = (record) => {
+    if (record.currentStep === 1) {
+      return record.currentStep - 1;
+    }
+
+    if (record.orgUnitId === 4 || SpecialLeaveTypes.includes(record.leaveTypeName)) {
+      return record.currentStep - 2;
+    } else {
+      return record.currentStep - 1;
+    }
+  }
 
   return (
     <Modal
@@ -83,9 +95,7 @@ const LeaveDetailModal = ({ open, onCancel, data, extra = null }) => {
 
         <Steps
           direction="vertical"
-          current={
-            data.orgUnitId === 4 ? data.currentStep - 2 : data.currentStep - 1
-          }
+          current={judgeCurrentStep(data)}
           items={data?.approvals.map((step) => ({
             title: (
               <div

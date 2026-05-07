@@ -18,7 +18,7 @@ import NoOperation from '@/components/NoOperation';
 import LeaveDetailModal from '@/components/LeaveDetailModal';
 import { formatTime } from '../../utils/formatTime';
 import {
-  leacesListApi,
+  leacesMonthlyListApi,
   leacesTypeApi,
   leacesStatusApi,
   leacesDetailApi,
@@ -27,6 +27,7 @@ import {
   leacesSelectLeaderApi,
   leacesSelectLeaderListApi,
 } from '@/api/leaves';
+import { orgListApi } from '@/api/super_admin';
 import { useAppSelector } from '@/hooks/useAppSelector';
 import {
   leave_step,
@@ -51,6 +52,9 @@ const Approval = () => {
   const [rejectForm] = Form.useForm();
   const { data: typeData } = useFetch(leacesTypeApi);
   const { data: statusData } = useFetch(leacesStatusApi);
+  const { data: orgData } = useFetch(() =>
+    orgListApi({ pageNum: 1, pageSize: 999 }),
+  );
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectMode, setRejectMode] = useState('single');
   const [filters, setFilters] = useState({
@@ -61,7 +65,20 @@ const Approval = () => {
   const needChooseLeaderStep = [3];
   const needOperation = ['PENDING', 'APPROVING'];
 
+  const orgUnitName = (orgUnitId) => {
+    const orgUnit = orgData?.records.find((o) => o.id === orgUnitId);
+    return orgUnit?.orgName || '';
+  }
+
   const columns = [
+    {
+      title: '所属部门',
+      dataIndex: 'orgUnitName',
+      render: (text, record) => {
+        return orgUnitName(record.orgUnitId);
+      },
+      hidden: user?.roleCode === 'ORG_PRINCIPAL',
+    },
     {
       title: '申请人',
       dataIndex: 'applicantName',
@@ -190,16 +207,34 @@ const Approval = () => {
   };
 
   const judgeNeedOperation = (record) => {
-    if (typeof leave_step[record?.currentStep] === 'string') {
-      return (
-        leave_step[record?.currentStep] === user.roleCode &&
-        needOperation.includes(record.status)
-      );
+    if (!record || !record.currentStep || !record.status || !user.roleCode) {
+      return false;
     }
-    return (
-      leave_step[record?.currentStep].includes(user.roleCode) &&
-      needOperation.includes(record.status)
-    );
+
+    if (!needOperation.includes(record.status)) {
+      return false;
+    }
+
+    const stepRoles = leave_step[record.currentStep];
+    if (!stepRoles) {
+      return false;
+    }
+
+    if (
+      record.approvedRoles &&
+      record.approvedRoles.includes(user.roleCode) &&
+      record.currentStep > 3
+    ) {
+      return false;
+    }
+
+    if (typeof stepRoles === 'string') {
+      return stepRoles === user.roleCode;
+    } else if (Array.isArray(stepRoles)) {
+      return stepRoles.includes(user.roleCode);
+    }
+
+    return false;
   };
 
   const judgeNeedChooseLeader = (record) => {
@@ -347,7 +382,7 @@ const Approval = () => {
       <BaseTable
         rowkey="id"
         columns={columns}
-        request={leacesListApi}
+        request={leacesMonthlyListApi}
         params={filters}
         rowSelection={rowSelection}
         isRefresh={isRefresh}

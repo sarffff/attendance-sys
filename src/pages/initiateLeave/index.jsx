@@ -15,7 +15,7 @@ import BaseForm from '@/components/BaseForm';
 import NoOperation from '@/components/NoOperation';
 import LeaveDetailModal from '@/components/LeaveDetailModal';
 import {
-  leacesListApi,
+  leacesMonthlyListApi,
   leacesTypeApi,
   leacesStatusApi,
   leacesDetailApi,
@@ -469,7 +469,7 @@ const InitiateLeave = () => {
 
       const { pdfUrl: relativePath } = await leacesPrintApi(record.id);
 
-      await printPdf(relativePath);
+      await printPdf(relativePath,record);
     } catch (error) {
       console.error('下载失败:', error);
       message.error('下载失败，请检查后端服务是否启动');
@@ -503,7 +503,7 @@ const InitiateLeave = () => {
         startDate,
         endDate,
       });
-      await printPdf(relativePath, messageKey, startDate, endDate);
+      await printPdf(relativePath,null, messageKey, startDate, endDate);
     } catch (error) {
       if (!error?.errorFields) {
         console.error('批量打印失败:', error);
@@ -520,6 +520,7 @@ const InitiateLeave = () => {
 
   const printPdf = async (
     relativePath,
+    record = null,
     key = null,
     startTime = null,
     endTime = null,
@@ -550,7 +551,7 @@ const InitiateLeave = () => {
     if (key != null && startTime && endTime) {
       link.download = `批量请假单_${startTime}_${endTime}.pdf`;
     } else {
-      link.download = `请假单_${new Date().toISOString().slice(0, 10)}.pdf`;
+      link.download = `${record.applicantName}请假单-${new Date().toISOString().slice(0, 10)}.pdf`;
     }
 
     document.body.appendChild(link);
@@ -621,7 +622,7 @@ const InitiateLeave = () => {
     >
       <BaseTable
         columns={columns}
-        request={leacesListApi}
+        request={leacesMonthlyListApi}
         params={filters}
         rowKey="id"
         isRefresh={isRefresh}

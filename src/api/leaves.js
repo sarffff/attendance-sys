@@ -1,9 +1,18 @@
 import request from '@/utils/request'
 
-//获取请假单列表
-export const leacesListApi = (params) => {
+//获取本月请假单列表
+export const leacesMonthlyListApi = (params) => {
   return request({
     url: '/leaves',
+    method: 'GET',
+    params
+  })
+}
+
+//获取近三个月请假单列表
+export const leacesListThreeMonthApi = (params) => {
+  return request({
+    url: '/leaves/approval-list/recent-three-months',
     method: 'GET',
     params
   })
