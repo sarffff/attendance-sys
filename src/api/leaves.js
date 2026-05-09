@@ -128,3 +128,12 @@ export const leacesBatchPrintApi = (data) => {
     data
   })
 }
+
+//上传手写签名
+export const leacesUploadSignatureApi = (leaveId, formData) => {
+  return request({
+    url: `/leaves/${leaveId}/handwritten-signature`,
+    method: 'POST',
+    data: formData
+  })
+}

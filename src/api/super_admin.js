@@ -133,3 +133,21 @@ export const messageSendApi = (data) => {
     data
   });
 };
+
+//获取所有请假记录列表
+export const allLeaveListApi = (params) => {
+  return request({
+    url: '/admin/leaves',
+    method: 'GET',
+    params
+  });
+}
+
+//修改请假单申请时间
+export const leaveApplyTimeEditApi = (leaveId, data) => {
+  return request({
+    url: `/leaves/${leaveId}/submitted-at`,
+    method: 'PUT',
+    data
+  });
+}

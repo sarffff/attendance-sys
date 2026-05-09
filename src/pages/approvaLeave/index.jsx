@@ -33,6 +33,7 @@ import {
   leave_step,
   leaveStatusMap as map,
   applicantType,
+  leaderList,
 } from '@/constants/constantsMap';
 
 const { TextArea } = Input;
@@ -65,10 +66,11 @@ const Approval = () => {
   const needChooseLeaderStep = [3];
   const needOperation = ['PENDING', 'APPROVING'];
 
+
   const orgUnitName = (orgUnitId) => {
     const orgUnit = orgData?.records.find((o) => o.id === orgUnitId);
     return orgUnit?.orgName || '';
-  }
+  };
 
   const columns = [
     {
@@ -183,27 +185,54 @@ const Approval = () => {
   };
 
   const chooseLeaderOperation = (record) => {
-    return (
-      <div style={{ textAlign: 'center' }}>
-        <Button
-          type="primary"
-          style={{
-            width: '100%',
-            border: 'none',
-            borderRadius: '9999px',
-            padding: '8px 24px',
-            fontSize: '14px',
-            fontWeight: '500',
-            boxShadow: '0 2px 6px rgba(124, 58, 237, 0.25)',
-            transition: 'all 0.2s ease',
-            whiteSpace: 'nowrap',
-          }}
-          onClick={() => openLeaderModal(record)}
-        >
-          选择后续领导
-        </Button>
-      </div>
+    const hasMatch = leaderList.some((role) =>
+      record.approvedRoles.includes(role),
     );
+    if (hasMatch) {
+      return (
+        <div style={{ textAlign: 'center' }}>
+          <Button
+            type="primary"
+            style={{
+              width: '100%',
+              border: 'none',
+              borderRadius: '9999px',
+              padding: '8px 24px',
+              fontSize: '14px',
+              fontWeight: '500',
+              boxShadow: '0 2px 6px rgba(251, 146, 60, 0.25)',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap',
+            }}
+            onClick={() => openLeaderModal(record)}
+          >
+            重选领导
+          </Button>
+        </div>
+      );
+    } else {
+      return (
+        <div style={{ textAlign: 'center' }}>
+          <Button
+            type="primary"
+            style={{
+              width: '100%',
+              border: 'none',
+              borderRadius: '9999px',
+              padding: '8px 24px',
+              fontSize: '14px',
+              fontWeight: '500',
+              boxShadow: '0 2px 6px rgba(124, 58, 237, 0.25)',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap',
+            }}
+            onClick={() => openLeaderModal(record)}
+          >
+            选择后续领导
+          </Button>
+        </div>
+      );
+    }
   };
 
   const judgeNeedOperation = (record) => {
@@ -238,6 +267,9 @@ const Approval = () => {
   };
 
   const judgeNeedChooseLeader = (record) => {
+     if (record.currentApproverId && record.currentApproverId !== user.roleCode) {
+      return false;
+    }
     return needChooseLeaderStep.includes(record.currentStep);
   };
 
@@ -434,7 +466,7 @@ const Approval = () => {
             批量同意
           </Button>,
           <Button key="reject" danger onClick={() => openRejectModal('batch')}>
-            批量拒绝
+            批量驳回
           </Button>,
         ]}
       >

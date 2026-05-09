@@ -40,4 +40,6 @@ export const leaveScopeMap = {
   'OTHER' : '其他'
 }
 
-export const SpecialLeaveTypes = ['年休假','病假','事假','丧假','搬家假']
+export const SpecialLeaveTypes = ['年休假', '病假', '事假', '丧假', '搬家假']
+
+export const leaderList = ['DEPUTY_STATIONMASTER', 'STATIONMASTER', 'PARTY_SECRETARY'];

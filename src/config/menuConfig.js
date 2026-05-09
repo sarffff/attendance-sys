@@ -6,6 +6,7 @@ import {
     UserAddOutlined,
     GroupOutlined,
     DeploymentUnitOutlined,
+    SnippetsOutlined
 } from '@ant-design/icons';
 
 import {
@@ -21,6 +22,7 @@ const InitiateLeave = lazy(() => import('@/pages/initiateLeave'));
 const OrganizationSettings = lazy(() => import('@/pages/org_settings'));
 const UserSettings = lazy(() => import('@/pages/user_settings'));
 const ApproveSettings = lazy(() => import('@/pages/approve_settings'));
+const LeavesSettings = lazy(() => import('@/pages/leaves_settings'));
 
 const withSuspense = (Component) => {
     return  React.createElement(
@@ -76,4 +78,11 @@ export const menuConfig = [
         roles: superRoleList,
         element: withSuspense(ApproveSettings),
     },
+    {
+        key: '/leaves-settings',
+        icon: SnippetsOutlined,
+        label: '请假设置',
+        roles: superRoleList,
+        element: withSuspense(LeavesSettings),
+    }
 ];
