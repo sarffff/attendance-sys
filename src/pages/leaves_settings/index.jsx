@@ -80,7 +80,7 @@ const LeavesSettings = () => {
       setEditLoading(true);
 
       await leaveApplyTimeEditApi(editingRecord.id, {
-        submittedAt: values.submittedAt.format('YYYY-MM-DD HH:mm:ss'),
+        submittedAt: values.submittedAt.format('YYYY-MM-DDTHH:mm:ss'),
       });
 
       message.success('申请时间修改成功');

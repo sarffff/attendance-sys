@@ -43,8 +43,10 @@ const InitiateLeave = () => {
   const [open, setOpen] = useState(false);
   const [batchPrintOpen, setBatchPrintOpen] = useState(false);
   const [batchPrintLoading, setBatchPrintLoading] = useState(false);
-  const [uploadingLeaveIdApplicant, setUploadingLeaveIdApplicant] = useState(null);
-  const [uploadingLeaveIdTeamLeader, setUploadingLeaveIdTeamLeader] = useState(null);
+  const [uploadingLeaveIdApplicant, setUploadingLeaveIdApplicant] =
+    useState(null);
+  const [uploadingLeaveIdTeamLeader, setUploadingLeaveIdTeamLeader] =
+    useState(null);
   const [signatureOpen, setSignatureOpen] = useState(false);
   const [signatureRecord, setSignatureRecord] = useState(null);
   const [signatureApplicantType, setSignatureApplicantType] = useState(null);
@@ -156,9 +158,6 @@ const InitiateLeave = () => {
         field: 'submittedAt',
         placeholder: '请选择申请时间',
         rules: [{ required: true, message: '请选择申请时间' }],
-        props: {
-          disabled: !!hasEditId,
-        },
       },
       {
         group: '请假信息',
@@ -257,9 +256,6 @@ const InitiateLeave = () => {
     } else if (applicantType === 'TEAM_LEADER') {
       setUploadingLeaveIdTeamLeader(record.id);
     }
-
-    console.log(formData.get('signatureFile'));
-    console.log(formData.get('applicantType'));
 
     try {
       await leacesUploadSignatureApi(record.id, formData);
@@ -378,92 +374,151 @@ const InitiateLeave = () => {
     switch (record.status) {
       case 'PENDING':
         return (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              width: '100%',
-            }}
-          >
-            <div style={{ flex: 1 }}>
-              <Button
-                onClick={() => handleEdit(record)}
-                style={{
-                  width: '100%',
-                  color: '#fff',
-                  background:
-                    'linear-gradient(135deg, #409EFF 0%, #1677ff 100%)',
-                  border: 'none',
-                  borderRadius: '9999px',
-                  padding: '8px 0',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  boxShadow: '0 2px 6px rgba(64, 158, 255, 0.3)',
-                  transition: 'all 0.2s ease',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                编辑
-              </Button>
-            </div>
-
-            <div style={{ flex: 1 }}>
-              <Popconfirm
-                title="确定撤销申请吗？"
-                okText="确定"
-                cancelText="取消"
-                onConfirm={() => handleRevoke(record)}
-              >
+          <>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                width: '100%',
+              }}
+            >
+              <div style={{ flex: 1 }}>
                 <Button
+                  onClick={() => handleEdit(record)}
                   style={{
                     width: '100%',
                     color: '#fff',
                     background:
-                      'linear-gradient(135deg, #606266 0%, #303133 100%)',
+                      'linear-gradient(135deg, #409EFF 0%, #1677ff 100%)',
                     border: 'none',
                     borderRadius: '9999px',
                     padding: '8px 0',
                     fontSize: '14px',
                     fontWeight: '500',
-                    boxShadow: '0 2px 6px rgba(67, 68, 68, 0.3)',
+                    boxShadow: '0 2px 6px rgba(64, 158, 255, 0.3)',
                     transition: 'all 0.2s ease',
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  撤销
+                  编辑
                 </Button>
-              </Popconfirm>
-            </div>
+              </div>
 
-            <div style={{ flex: 1 }}>
-              <Popconfirm
-                title="确定删除申请吗？"
-                okText="确定"
-                cancelText="取消"
-                onConfirm={() => handleDelete(record)}
-              >
+              <div style={{ flex: 1 }}>
+                <Popconfirm
+                  title="确定撤销申请吗？"
+                  okText="确定"
+                  cancelText="取消"
+                  onConfirm={() => handleRevoke(record)}
+                >
+                  <Button
+                    style={{
+                      width: '100%',
+                      color: '#fff',
+                      background:
+                        'linear-gradient(135deg, #606266 0%, #303133 100%)',
+                      border: 'none',
+                      borderRadius: '9999px',
+                      padding: '8px 0',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      boxShadow: '0 2px 6px rgba(67, 68, 68, 0.3)',
+                      transition: 'all 0.2s ease',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    撤销
+                  </Button>
+                </Popconfirm>
+              </div>
+
+              <div style={{ flex: 1 }}>
+                <Popconfirm
+                  title="确定删除申请吗？"
+                  okText="确定"
+                  cancelText="取消"
+                  onConfirm={() => handleDelete(record)}
+                >
+                  <Button
+                    style={{
+                      width: '100%',
+                      color: '#fff',
+                      background:
+                        'linear-gradient(135deg, #ff7875 0%, #ff4d4f 100%)',
+                      border: 'none',
+                      borderRadius: '9999px',
+                      padding: '8px 0',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      boxShadow: '0 2px 6px rgba(255, 77, 79, 0.3)',
+                      transition: 'all 0.2s ease',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    删除
+                  </Button>
+                </Popconfirm>
+              </div>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                width: '100%',
+              }}
+            >
+              <div style={{ flex: 1 }}>
                 <Button
+                  loading={uploadingLeaveIdApplicant === record.id}
                   style={{
                     width: '100%',
+                    marginBottom: 8,
                     color: '#fff',
                     background:
-                      'linear-gradient(135deg, #ff7875 0%, #ff4d4f 100%)',
+                      'linear-gradient(135deg, #409EFF 0%, #1677ff 100%)',
                     border: 'none',
                     borderRadius: '9999px',
-                    padding: '8px 0',
+                    padding: '8px 24px',
                     fontSize: '14px',
                     fontWeight: '500',
-                    boxShadow: '0 2px 6px rgba(255, 77, 79, 0.3)',
+                    boxShadow: '0 2px 6px rgba(64, 158, 255, 0.3)',
                     transition: 'all 0.2s ease',
                     whiteSpace: 'nowrap',
                   }}
+                  onClick={() => openSignatureModal(record, 'APPLICANT')}
                 >
-                  删除
+                  申请人签字
                 </Button>
-              </Popconfirm>
+              </div>
+              {record.applicantType === 'EMPLOYEE' ? (
+                <div style={{ flex: 1 }}>
+                  <Button
+                    loading={uploadingLeaveIdTeamLeader === record.id}
+                    style={{
+                      width: '100%',
+                      marginBottom: 8,
+                      color: '#fff',
+                      background:
+                        'linear-gradient(135deg, #409EFF 0%, #1677ff 100%)',
+                      border: 'none',
+                      borderRadius: '9999px',
+                      padding: '8px 24px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      boxShadow: '0 2px 6px rgba(64, 158, 255, 0.3)',
+                      transition: 'all 0.2s ease',
+                      whiteSpace: 'nowrap',
+                    }}
+                    onClick={() => openSignatureModal(record, 'TEAM_LEADER')}
+                  >
+                    班组长签字
+                  </Button>
+                </div>
+              ) : null}
             </div>
-          </div>
+          </>
         );
       case 'APPROVED':
         return (
@@ -475,52 +530,6 @@ const InitiateLeave = () => {
               width: '100%',
             }}
           >
-            <div style={{ flex: 1 }}>
-              <Button
-                loading={uploadingLeaveIdApplicant === record.id}
-                style={{
-                  width: '100%',
-                  marginBottom: 8,
-                  color: '#fff',
-                  background:
-                    'linear-gradient(135deg, #409EFF 0%, #1677ff 100%)',
-                  border: 'none',
-                  borderRadius: '9999px',
-                  padding: '8px 24px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  boxShadow: '0 2px 6px rgba(64, 158, 255, 0.3)',
-                  transition: 'all 0.2s ease',
-                  whiteSpace: 'nowrap',
-                }}
-                onClick={() => openSignatureModal(record,'APPLICANT')}
-              >
-                申请人上传签名信息
-              </Button>
-            </div>
-            <div style={{ flex: 1 }}>
-              <Button
-                loading={uploadingLeaveIdTeamLeader === record.id}
-                style={{
-                  width: '100%',
-                  marginBottom: 8,
-                  color: '#fff',
-                  background:
-                    'linear-gradient(135deg, #409EFF 0%, #1677ff 100%)',
-                  border: 'none',
-                  borderRadius: '9999px',
-                  padding: '8px 24px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  boxShadow: '0 2px 6px rgba(64, 158, 255, 0.3)',
-                  transition: 'all 0.2s ease',
-                  whiteSpace: 'nowrap',
-                }}
-                onClick={() => openSignatureModal(record,'TEAM_LEADER') }
-              >
-                班组长上传签名信息
-              </Button>
-            </div>
             <div style={{ flex: 1 }}>
               <Button
                 type="primary"
@@ -614,7 +623,7 @@ const InitiateLeave = () => {
       ...record,
       startTime: dayjs(record.startTime),
       endTime: dayjs(record.endTime),
-        submittedAt: dayjs(record.submittedAt),
+      submittedAt: dayjs(record.submittedAt),
     });
     setHasEditId(record.id);
     setOpen(true);
@@ -672,7 +681,25 @@ const InitiateLeave = () => {
     form.resetFields();
   };
 
+  const validateSignatures = (record) => {
+    if (!record.applicantSignatureUrl) {
+      message.warning('请先上传申请人签名信息');
+      return false;
+    }
+
+    if (record.applicantType === 'EMPLOYEE' && !record.teamLeaderSignatureUrl) {
+      message.warning('请先上传班组长签名信息');
+      return false;
+    }
+
+    return true;
+  };
+
   const printLeave = async (record) => {
+    if (!validateSignatures(record)) {
+      return;
+    }
+
     try {
       message.loading('正在下载请假单...', 0);
 
@@ -883,7 +910,11 @@ const InitiateLeave = () => {
         }}
         okText="确认上传"
         cancelText="取消"
-        confirmLoading={signatureApplicantType === 'APPLICANT' ? uploadingLeaveIdApplicant === signatureRecord?.id : uploadingLeaveIdTeamLeader === signatureRecord?.id}
+        confirmLoading={
+          signatureApplicantType === 'APPLICANT'
+            ? uploadingLeaveIdApplicant === signatureRecord?.id
+            : uploadingLeaveIdTeamLeader === signatureRecord?.id
+        }
         destroyOnHidden={true}
       >
         <div
