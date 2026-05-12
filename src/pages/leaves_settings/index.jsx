@@ -65,6 +65,7 @@ const LeavesSettings = () => {
     editForm.setFieldsValue({
       applicantName: record.applicantName,
       submittedAt: dayjs(record.submittedAt),
+      startTime: dayjs(record.startTime),
     });
     setEditModalOpen(true);
   };
@@ -102,6 +103,12 @@ const LeavesSettings = () => {
   const handleEditSubmit = async () => {
     try {
       const values = await editForm.validateFields();
+      if (values.submittedAt && values.startTime) {
+        if (values.submittedAt.isAfter(values.startTime)) {
+          message.error('申请时间必须早于请假开始时间');
+          return;
+        }
+      }
       setEditLoading(true);
 
       await leaveApplyTimeEditApi(editingRecord.id, {
@@ -411,6 +418,10 @@ const LeavesSettings = () => {
         }}
       >
         <Form form={editForm} layout="vertical" requiredMark="optional">
+           <Form.Item
+            name="startTime"
+            hidden
+          ></Form.Item>
           <Form.Item
             label={<span style={{ fontWeight: 500 }}>申请人</span>}
             name="applicantName"
@@ -519,9 +530,7 @@ const LeavesSettings = () => {
 
                   <Form.Item
                     name={['approvals', index, 'signatureDate']}
-                    rules={[
-                      { required: true, message: '请选择审批时间' },
-                    ]}
+                    rules={[{ required: true, message: '请选择审批时间' }]}
                     style={{ marginBottom: 0 }}
                   >
                     <DatePicker

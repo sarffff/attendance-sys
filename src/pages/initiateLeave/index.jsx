@@ -250,14 +250,16 @@ const InitiateLeave = () => {
   ];
 
   const handleUploadSignature = async (record, file, applicantType) => {
-
     const formData = new FormData();
     formData.append('signatureFile', file);
     formData.append('applicantType', applicantType);
-     if (!signatureDate) {
+    if (!signatureDate) {
       message.warning('未选择签名日期，将使用当前日期作为签名日期');
-     } else {
-       formData.append('signatureDate', dayjs(signatureDate).format('YYYY-MM-DDT00:00:00'));
+    } else {
+      formData.append(
+        'signatureDate',
+        dayjs(signatureDate).format('YYYY-MM-DDT00:00:00'),
+      );
     }
 
     if (applicantType === 'APPLICANT') {
@@ -693,6 +695,12 @@ const InitiateLeave = () => {
 
   const handleSubmit = async () => {
     const values = await form.validateFields();
+    if (values.submittedAt && values.startTime) {
+      if (values.submittedAt.isAfter(values.startTime)) {
+        message.error('申请时间必须早于请假开始时间');
+        return;
+      }
+    }
     const data = {
       applicantId: user.userId,
       ...values,
