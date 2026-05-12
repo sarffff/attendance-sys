@@ -151,3 +151,12 @@ export const leaveApplyTimeEditApi = (leaveId, data) => {
     data
   });
 }
+
+//修改审批时间
+export const leaveApproveTimeEditApi = (leaveId, data) => {
+  return request({
+    url: `/leaves/${leaveId}/signature-date`,
+    method: 'PUT',
+    data
+  });
+}

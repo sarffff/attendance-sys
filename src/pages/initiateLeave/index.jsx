@@ -42,6 +42,7 @@ const InitiateLeave = () => {
   const user = useAppSelector((state) => state.user.userInfo);
   const [open, setOpen] = useState(false);
   const [batchPrintOpen, setBatchPrintOpen] = useState(false);
+  const [signatureDateOpen, setSignatureDateOpen] = useState(false);
   const [batchPrintLoading, setBatchPrintLoading] = useState(false);
   const [uploadingLeaveIdApplicant, setUploadingLeaveIdApplicant] =
     useState(null);
@@ -51,6 +52,7 @@ const InitiateLeave = () => {
   const [signatureRecord, setSignatureRecord] = useState(null);
   const [signatureApplicantType, setSignatureApplicantType] = useState(null);
   const [hasSignature, setHasSignature] = useState(false);
+  const [signatureDate, setSignatureDate] = useState(null);
   const signatureCanvasRef = useRef(null);
   const signatureDrawingRef = useRef(false);
   const [hasEditId, setHasEditId] = useState(null);
@@ -240,6 +242,7 @@ const InitiateLeave = () => {
       title: '操作',
       valueType: 'option',
       fixed: 'right',
+      width: 400,
       render: (_, record) => {
         return optionSetting(record);
       },
@@ -247,9 +250,15 @@ const InitiateLeave = () => {
   ];
 
   const handleUploadSignature = async (record, file, applicantType) => {
+
     const formData = new FormData();
     formData.append('signatureFile', file);
     formData.append('applicantType', applicantType);
+     if (!signatureDate) {
+      message.warning('未选择签名日期，将使用当前日期作为签名日期');
+     } else {
+       formData.append('signatureDate', dayjs(signatureDate).format('YYYY-MM-DDT00:00:00'));
+    }
 
     if (applicantType === 'APPLICANT') {
       setUploadingLeaveIdApplicant(record.id);
@@ -381,6 +390,7 @@ const InitiateLeave = () => {
                 alignItems: 'center',
                 gap: '8px',
                 width: '100%',
+                marginBottom: 8,
               }}
             >
               <div style={{ flex: 1 }}>
@@ -514,6 +524,32 @@ const InitiateLeave = () => {
                     onClick={() => openSignatureModal(record, 'TEAM_LEADER')}
                   >
                     班组长签字
+                  </Button>
+                </div>
+              ) : null}
+              {record.applicantType === 'EMPLOYEE' ? (
+                <div style={{ flex: 1 }}>
+                  <Button
+                    style={{
+                      width: '100%',
+                      color: '#fff',
+                      background:
+                        'linear-gradient(135deg, #67C23A 0%, #529b2e 100%)',
+                      border: 'none',
+                      borderRadius: '9999px',
+                      padding: '8px 24px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      boxShadow: '0 2px 6px rgba(103, 194, 58, 0.3)',
+                      transition: 'all 0.2s ease',
+                      whiteSpace: 'nowrap',
+                    }}
+                    onClick={() => {
+                      setSignatureRecord(record);
+                      setSignatureDateOpen(true);
+                    }}
+                  >
+                    班组长上传签名日期
                   </Button>
                 </div>
               ) : null}
@@ -961,6 +997,30 @@ const InitiateLeave = () => {
         onCancel={() => setDetailVisible(false)}
         data={currentDetail}
       />
+
+      <Modal
+        title="选择签名日期"
+        open={signatureDateOpen}
+        onOk={() => {
+          if (!signatureDate) {
+            message.warning('请选择签名日期');
+            return;
+          }
+          setSignatureDateOpen(false);
+          message.success('签名日期已设置');
+        }}
+        onCancel={() => setSignatureDateOpen(false)}
+        okText="确认"
+        cancelText="取消"
+      >
+        <DatePicker
+          placeholder="请选择签名日期"
+          format="YYYY-MM-DD"
+          value={signatureDate}
+          onChange={(date) => setSignatureDate(date)}
+          style={{ width: '100%' }}
+        />
+      </Modal>
     </Card>
   );
 };

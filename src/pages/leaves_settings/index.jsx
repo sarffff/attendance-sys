@@ -10,16 +10,11 @@ import {
   Modal,
   DatePicker,
   message,
-  Select,
   Tooltip,
-  Popconfirm,
 } from 'antd';
 import {
   SnippetsOutlined,
   EditOutlined,
-  ReloadOutlined,
-  ApartmentOutlined,
-  UserOutlined,
   SearchOutlined,
   CalendarOutlined,
 } from '@ant-design/icons';
@@ -29,11 +24,13 @@ import {
   orgListApi,
   allLeaveListApi,
   leaveApplyTimeEditApi,
+  leaveApproveTimeEditApi,
 } from '@/api/super_admin';
 import { useFetch } from '@/hooks/useFetch';
 import BaseTable from '@/components/BaseTable';
 import { formatTime } from '@/utils/formatTime';
 import { leaveStatusMap as map, applicantType } from '@/constants/constantsMap';
+import { leaveStatusMap } from '../../constants/constantsMap';
 
 const { Title } = Typography;
 
@@ -44,6 +41,10 @@ const LeavesSettings = () => {
   const [editingRecord, setEditingRecord] = useState(null);
   const [editForm] = Form.useForm();
   const [editLoading, setEditLoading] = useState(false);
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
+  const [approvingRecord, setApprovingRecord] = useState(null);
+  const [approveForm] = Form.useForm();
+  const [approveLoading, setApproveLoading] = useState(false);
   const [searchParams, setSearchParams] = useState({
     applicantName: '',
   });
@@ -68,10 +69,34 @@ const LeavesSettings = () => {
     setEditModalOpen(true);
   };
 
+  const getApprovalDate = (approval) => {
+    const date = approval?.signatureDate || approval?.approvedAt;
+    return date ? dayjs(date) : null;
+  };
+
+  const handleApproveEditClick = (record) => {
+    const approvals = Array.isArray(record.approvals) ? record.approvals : [];
+
+    setApprovingRecord(record);
+    approveForm.setFieldsValue({
+      applicantName: record.applicantName,
+      approvals: approvals.map((approval) => ({
+        signatureDate: getApprovalDate(approval),
+      })),
+    });
+    setApproveModalOpen(true);
+  };
+
   const handleEditModalClose = () => {
     setEditModalOpen(false);
     setEditingRecord(null);
     editForm.resetFields();
+  };
+
+  const handleApproveModalClose = () => {
+    setApproveModalOpen(false);
+    setApprovingRecord(null);
+    approveForm.resetFields();
   };
 
   const handleEditSubmit = async () => {
@@ -96,43 +121,86 @@ const LeavesSettings = () => {
     }
   };
 
+  const handleApproveSubmit = async () => {
+    const approvals = Array.isArray(approvingRecord?.approvals)
+      ? approvingRecord.approvals
+      : [];
+
+    if (!approvals.length) {
+      message.warning('当前请假记录暂无审批流程');
+      return;
+    }
+
+    try {
+      const values = await approveForm.validateFields();
+      setApproveLoading(true);
+
+      await Promise.all(
+        approvals.map((approval, index) =>
+          leaveApproveTimeEditApi(approvingRecord.id, {
+            stepNo: approval.stepNo,
+            signatureDate: values.approvals[index].signatureDate.format(
+              'YYYY-MM-DDTHH:mm:ss',
+            ),
+          }),
+        ),
+      );
+
+      message.success('审批时间修改成功');
+      handleApproveModalClose();
+      refresh();
+    } catch (error) {
+      console.error('编辑审批时间失败:', error);
+      if (error.errorFields) {
+        message.error('请填写完整审批时间');
+      }
+    } finally {
+      setApproveLoading(false);
+    }
+  };
+
   const operationButtons = (record) => {
+    const baseButtonStyle = {
+      width: '100%',
+      border: 'none',
+      borderRadius: 8,
+      fontSize: 13,
+      fontWeight: 500,
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+      whiteSpace: 'nowrap',
+    };
+
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          width: '100%',
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          <Button
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEditClick(record)}
-            style={{
-              width: '100%',
-              color: '#fff',
-              background: 'linear-gradient(135deg, #13c2c2 0%, #0e8a8a 100%)',
-              border: 'none',
-              borderRadius: '9999px',
-              padding: '4px 10px',
-              fontSize: '13px',
-              fontWeight: '500',
-              boxShadow: '0 2px 6px rgba(19, 194, 194, 0.3)',
-              transition: 'all 0.2s ease',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            编辑
-          </Button>
-        </div>
-      </div>
+      <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        <Button
+          size="small"
+          icon={<EditOutlined />}
+          onClick={() => handleEditClick(record)}
+          style={{
+            ...baseButtonStyle,
+            color: '#fff',
+            background: 'linear-gradient(135deg, #1677ff 0%, #0958d9 100%)',
+          }}
+        >
+          修改申请时间
+        </Button>
+        <Button
+          size="small"
+          icon={<EditOutlined />}
+          onClick={() => handleApproveEditClick(record)}
+          style={{
+            ...baseButtonStyle,
+            color: '#fff',
+            background: 'linear-gradient(135deg, #722ed1 0%, #531dab 100%)',
+          }}
+        >
+          修改审批时间
+        </Button>
+      </Space>
     );
   };
 
-   const handleClear = () => {
+  const handleClear = () => {
     setFilterApplicantName('');
     handlePressEnter(null, '');
   };
@@ -222,7 +290,7 @@ const LeavesSettings = () => {
     {
       title: '操作',
       fixed: 'right',
-      width: 80,
+      width: 200,
       render: (_, record) => operationButtons(record),
     },
   ];
@@ -362,6 +430,115 @@ const LeavesSettings = () => {
               style={{ width: '100%' }}
             />
           </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={
+          <Space size="small">
+            <div
+              style={{
+                background: '#f9f0ff',
+                padding: '6px',
+                borderRadius: '6px',
+                display: 'flex',
+              }}
+            >
+              <SnippetsOutlined
+                style={{ color: '#722ed1', fontSize: '18px' }}
+              />
+            </div>
+            <span style={{ fontWeight: 600 }}>编辑审批时间</span>
+          </Space>
+        }
+        open={approveModalOpen}
+        onOk={handleApproveSubmit}
+        onCancel={handleApproveModalClose}
+        confirmLoading={approveLoading}
+        okText="保存"
+        cancelText="取消"
+        width={720}
+        centered
+        styles={{
+          body: { paddingTop: 20, paddingBottom: 8 },
+          mask: { backdropFilter: 'blur(4px)' },
+        }}
+      >
+        <Form form={approveForm} layout="vertical" requiredMark="optional">
+          <Form.Item
+            label={<span style={{ fontWeight: 500 }}>申请人</span>}
+            name="applicantName"
+          >
+            <Input disabled />
+          </Form.Item>
+
+          {Array.isArray(approvingRecord?.approvals) &&
+          approvingRecord.approvals.length ? (
+            approvingRecord.approvals.map((approval, index) => (
+              <Card
+                key={`${approval.stepNo}-${index}`}
+                size="small"
+                style={{ marginBottom: 12, borderRadius: 10 }}
+                styles={{ body: { padding: 12 } }}
+              >
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 220px',
+                    gap: 16,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Space direction="vertical" size={4}>
+                    <Space wrap size={6}>
+                      <Tag color="purple">第 {approval.stepNo} 步</Tag>
+                      <span style={{ fontWeight: 600 }}>
+                        {approval.stepName || '审批流程'}
+                      </span>
+                      {approval.approvalStatus && (
+                        <Tag
+                          color={
+                            approval.approvalStatus === 'APPROVED'
+                              ? 'green'
+                              : 'default'
+                          }
+                        >
+                          {leaveStatusMap[approval.approvalStatus]?.text}
+                        </Tag>
+                      )}
+                    </Space>
+                    <span style={{ color: '#666' }}>
+                      {approval.approverRoleName ||
+                        approval.approverRoleCode ||
+                        '-'}
+                      {approval.approverName
+                        ? ` / ${approval.approverName}`
+                        : ''}
+                    </span>
+                  </Space>
+
+                  <Form.Item
+                    name={['approvals', index, 'signatureDate']}
+                    rules={[
+                      { required: true, message: '请选择审批时间' },
+                    ]}
+                    style={{ marginBottom: 0 }}
+                  >
+                    <DatePicker
+                      showTime
+                      format="YYYY-MM-DD HH:mm:ss"
+                      placeholder="请选择审批时间"
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                </div>
+              </Card>
+            ))
+          ) : (
+            <div style={{ color: '#999', textAlign: 'center', padding: 24 }}>
+              暂无审批流程
+            </div>
+          )}
         </Form>
       </Modal>
     </div>
