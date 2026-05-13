@@ -10,6 +10,7 @@ import {
   Modal,
   Alert,
   Input,
+  DatePicker,
 } from 'antd';
 import { useState } from 'react';
 import { useFetch } from '@/hooks/useFetch';
@@ -35,6 +36,7 @@ import {
   applicantType,
   leaderList,
 } from '@/constants/constantsMap';
+import dayjs from 'dayjs';
 
 const { TextArea } = Input;
 const Approval = () => {
@@ -48,6 +50,8 @@ const Approval = () => {
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [leaderModalOpen, setLeaderModalOpen] = useState(false);
   const [batchLeaderList, setBatchLeaderList] = useState([]);
+  const [approvedAt, setApprovedAt] = useState(null);
+  const [approvedDateOpen, setApprovedDateOpen] = useState(false);
   const [filterForm] = Form.useForm();
   const [chooseLeaderForm] = Form.useForm();
   const [rejectForm] = Form.useForm();
@@ -180,6 +184,28 @@ const Approval = () => {
         >
           审批
         </Button>
+        <Button
+          size="small"
+          style={{
+            width: '100%',
+            height: 32,
+            padding: '0 16px',
+            borderRadius: 16,
+            border: 'none',
+            background: 'linear-gradient(135deg, #67C23A 0%, #529b2e 100%)',
+            color: '#fff',
+            boxShadow: '0 2px 6px rgba(103, 194, 58, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            fontWeight: 500,
+          }}
+          onClick={() => {
+            setCurrentRow(record);
+            setApprovedDateOpen(true);
+          }}
+        >
+          上传审批时间
+        </Button>
       </div>
     );
   };
@@ -290,6 +316,9 @@ const Approval = () => {
     formData.append('approved', type === 'APPROVE');
     formData.append('comment', type === 'APPROVE' ? '同意' : comment);
     formData.append('signatureUrl', `${FILE_BASE_URL}${user.signatureUrl}`);
+    if (approvedAt) {
+      formData.append('approvedAt', dayjs(approvedAt).format('YYYY-MM-DD'));
+    }
     await leacesApproveApi(currentRow.id, formData);
     message.success(type === 'APPROVE' ? '审批通过' : '审批拒绝');
     setCurrentRow(null);
@@ -543,6 +572,30 @@ const Approval = () => {
             <TextArea rows={6} placeholder="请输入备注..." />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="选择审批时间"
+        open={approvedDateOpen}
+        onOk={() => {
+          if (!approvedAt) {
+            message.warning('请选择审批时间');
+            return;
+          }
+          setApprovedDateOpen(false);
+          message.success('审批时间已设置');
+        }}
+        onCancel={() => setApprovedDateOpen(false)}
+        okText="确认"
+        cancelText="取消"
+      >
+        <DatePicker
+          placeholder="请选择审批时间"
+          format="YYYY-MM-DD"
+          value={approvedAt}
+          onChange={(date) => setApprovedAt(date)}
+          style={{ width: '100%' }}
+        />
       </Modal>
     </Card>
   );

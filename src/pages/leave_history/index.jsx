@@ -27,6 +27,7 @@ import {
   leacesPrintApi,
   leacesBatchPrintApi,
   leacesUploadSignatureApi,
+  leacesListThreeMonthApi
 } from '@/api/leaves';
 import { useFetch } from '../../hooks/useFetch';
 import { formatTime } from '../../utils/formatTime';
@@ -35,13 +36,14 @@ import { leaveStatusMap as map, applicantType } from '@/constants/constantsMap';
 import dayjs from 'dayjs';
 const { RangePicker } = DatePicker;
 
-const InitiateLeave = () => {
+const LeaveHistory = () => {
   const [form] = Form.useForm();
   const [filterForm] = Form.useForm();
   const [batchPrintForm] = Form.useForm();
   const user = useAppSelector((state) => state.user.userInfo);
   const [open, setOpen] = useState(false);
   const [batchPrintOpen, setBatchPrintOpen] = useState(false);
+  const [signatureDateOpen, setSignatureDateOpen] = useState(false);
   const [batchPrintLoading, setBatchPrintLoading] = useState(false);
   const [uploadingLeaveIdApplicant, setUploadingLeaveIdApplicant] =
     useState(null);
@@ -52,19 +54,21 @@ const InitiateLeave = () => {
   const [signatureApplicantType, setSignatureApplicantType] = useState(null);
   const [hasSignature, setHasSignature] = useState(false);
   const [signatureDate, setSignatureDate] = useState(null);
-  const [signatureDateOpen, setSignatureDateOpen] = useState(false);
   const signatureCanvasRef = useRef(null);
   const signatureDrawingRef = useRef(false);
   const [hasEditId, setHasEditId] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
   const [currentDetail, setCurrentDetail] = useState(null);
   const [isRefresh, setIsRefresh] = useState(false);
+  const [leavePage, setLeavePage] = useState({ pageNum: 1, pageSize: 5 });
   const [filters, setFilters] = useState({
-    status: '',
     leaveTypeId: null,
   });
   const { data } = useFetch(leacesTypeApi);
-  const { data: statusData } = useFetch(leacesStatusApi);
+    const { data: leaveListData, loading: listLoading } = useFetch(
+    () => leacesListThreeMonthApi(leavePage),
+    [leavePage],
+  );
   useEffect(() => {
     if (signatureOpen) {
       setTimeout(() => resetSignatureCanvas(), 0);
@@ -242,6 +246,7 @@ const InitiateLeave = () => {
       title: '操作',
       valueType: 'option',
       fixed: 'right',
+      width: 400,
       render: (_, record) => {
         return optionSetting(record);
       },
@@ -252,8 +257,13 @@ const InitiateLeave = () => {
     const formData = new FormData();
     formData.append('signatureFile', file);
     formData.append('applicantType', applicantType);
-    if (signatureDate) {
-      formData.append('signatureDate', dayjs(signatureDate).format('YYYY-MM-DD'));
+    if (!signatureDate) {
+      message.warning('未选择签名日期，将使用当前日期作为签名日期');
+    } else {
+      formData.append(
+        'signatureDate',
+        dayjs(signatureDate).format('YYYY-MM-DDT00:00:00'),
+      );
     }
 
     if (applicantType === 'APPLICANT') {
@@ -386,6 +396,7 @@ const InitiateLeave = () => {
                 alignItems: 'center',
                 gap: '8px',
                 width: '100%',
+                marginBottom: 8,
               }}
             >
               <div style={{ flex: 1 }}>
@@ -500,6 +511,7 @@ const InitiateLeave = () => {
               {record.applicantType === 'EMPLOYEE' ? (
                 <div style={{ flex: 1 }}>
                   <Button
+                    loading={uploadingLeaveIdTeamLeader === record.id}
                     style={{
                       width: '100%',
                       marginBottom: 8,
@@ -519,6 +531,10 @@ const InitiateLeave = () => {
                   >
                     班组长签字
                   </Button>
+                </div>
+              ) : null}
+              {record.applicantType === 'EMPLOYEE' ? (
+                <div style={{ flex: 1 }}>
                   <Button
                     style={{
                       width: '100%',
@@ -671,18 +687,23 @@ const InitiateLeave = () => {
 
   const handleFilter = (values) => {
     setFilters({
-      status: values.status || '',
       leaveTypeId: values.leaveTypeId || null,
     });
   };
 
   const handleResetFilter = () => {
     filterForm.resetFields();
-    setFilters({ status: '', leaveTypeId: null });
+    setFilters({ leaveTypeId: null });
   };
 
   const handleSubmit = async () => {
     const values = await form.validateFields();
+    if (values.submittedAt && values.startTime) {
+      if (values.submittedAt.isAfter(values.startTime)) {
+        message.error('申请时间必须早于请假开始时间');
+        return;
+      }
+    }
     const data = {
       applicantId: user.userId,
       ...values,
@@ -833,19 +854,6 @@ const InitiateLeave = () => {
       title="请假管理"
       extra={
         <Form form={filterForm} layout="inline" onFinish={handleFilter}>
-          <Form.Item name="status" label="状态">
-            <Select
-              allowClear
-              placeholder="请选择状态"
-              options={
-                statusData?.map((item) => ({
-                  label: item.name,
-                  value: item.code,
-                })) || []
-              }
-            />
-          </Form.Item>
-
           <Form.Item name="leaveTypeId" label="请假类型">
             <Select
               allowClear
@@ -868,15 +876,6 @@ const InitiateLeave = () => {
             </Button>
             <Button style={{ marginRight: 8 }} onClick={openBatchPrint}>
               批量打印
-            </Button>
-            <Button
-              type="primary"
-              onClick={() => {
-                form.resetFields();
-                setOpen(true);
-              }}
-            >
-              申请请假
             </Button>
           </Form.Item>
         </Form>
@@ -1015,4 +1014,4 @@ const InitiateLeave = () => {
   );
 };
 
-export default InitiateLeave;
+export default LeaveHistory;
