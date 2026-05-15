@@ -10,18 +10,16 @@ import {
   Row,
   Skeleton,
   Space,
-  Statistic,
   Table,
-  Tag,
   Typography,
 } from 'antd';
 import {
   BellOutlined,
+  BulbOutlined,
   CalendarOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  FileTextOutlined,
-  InboxOutlined,
+  SafetyCertificateOutlined,
+  TeamOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { useFetch } from '@/hooks/useFetch';
 import {
@@ -29,30 +27,24 @@ import {
   countLeaveStatusApi,
   countLeaveTypeApi,
 } from '@/api/login';
-import { leacesListThreeMonthApi } from '@/api/leaves';
 import { formatTime } from '@/utils/formatTime';
-import { applicantType, leaveStatusMap } from '@/constants/constantsMap';
+import { useAppSelector } from '@/hooks/useAppSelector';
 
 const { Paragraph, Title, Text } = Typography;
 
 const pageSizeOptions = ['5', '10', '20'];
 
 const OtherRole = () => {
+  const user = useAppSelector((state) => state.user.userInfo);
   const [messagePage, setMessagePage] = useState({ pageNum: 1, pageSize: 5 });
-  const [leavePage, setLeavePage] = useState({ pageNum: 1, pageSize: 5 });
   const [selectedMessage, setSelectedMessage] = useState(null);
 
   const { data: leaveTypeData, loading: typeLoading } =
     useFetch(countLeaveTypeApi);
-  const { data: leaveStatusData, loading: statusLoading } =
-    useFetch(countLeaveStatusApi);
+  const { data: leaveStatusData } = useFetch(countLeaveStatusApi);
   const { data: leaveInfoData, loading: infoLoading } = useFetch(
     () => countLeaveInfoApi(messagePage),
     [messagePage],
-  );
-  const { data: leaveListData, loading: listLoading } = useFetch(
-    () => leacesListThreeMonthApi(leavePage),
-    [leavePage],
   );
 
   const leaveTypes = Array.isArray(leaveTypeData) ? leaveTypeData : [];
@@ -62,10 +54,6 @@ const OtherRole = () => {
   );
   const totalTypeCount = leaveTypes.reduce(
     (sum, item) => sum + Number(item.requestCount || item.count || 0),
-    0,
-  );
-  const totalStatusCount = statusItems.reduce(
-    (sum, item) => sum + Number(item.value || 0),
     0,
   );
 
@@ -107,65 +95,6 @@ const OtherRole = () => {
     },
   ];
 
-  const leaveColumns = [
-    {
-      title: '申请人',
-      dataIndex: 'applicantName',
-      width: 110,
-      fixed: 'left',
-      render: (name) => <Text strong>{name || '-'}</Text>,
-    },
-    {
-      title: '人员类型',
-      dataIndex: 'applicantType',
-      width: 130,
-      render: (type) => applicantType[type] || type || '-',
-    },
-    {
-      title: '请假类型',
-      dataIndex: 'leaveTypeName',
-      width: 110,
-      render: (type) => <Tag color="blue">{type || '-'}</Tag>,
-    },
-    {
-      title: '天数',
-      dataIndex: 'leaveDays',
-      width: 90,
-      render: (days) => `${days ?? 0} 天`,
-    },
-    {
-      title: '请假时间',
-      width: 310,
-      render: (_, record) =>
-        `${safeFormatTime(record.startTime)} ~ ${safeFormatTime(record.endTime)}`,
-    },
-    {
-      title: '原因',
-      dataIndex: 'reason',
-      ellipsis: true,
-      render: (reason) => reason || '-',
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 110,
-      render: (status) => {
-        const statusConfig = leaveStatusMap[status];
-        return (
-          <Tag color={statusConfig?.color || 'default'}>
-            {statusConfig?.text || status || '-'}
-          </Tag>
-        );
-      },
-    },
-    {
-      title: '提交时间',
-      dataIndex: 'submittedAt',
-      width: 190,
-      render: safeFormatTime,
-    },
-  ];
-
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -174,11 +103,74 @@ const OtherRole = () => {
             控制台
           </Title>
           <Text type="secondary">
-            查看请假概览、审批状态、消息提醒与申请记录
+            查看请假概览、消息提醒与系统公告
           </Text>
         </div>
       </div>
 
+      {/* 欢迎横幅 */}
+      <Card bordered={false} style={styles.welcomeCard}>
+        <Row align="middle" justify="space-between">
+          <Col>
+            <Space align="start" size={20}>
+              <Avatar
+                size={64}
+                icon={<UserOutlined />}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  color: '#fff',
+                  fontSize: 28,
+                }}
+              />
+              <div>
+                <Title level={4} style={{ color: '#fff', margin: 0 }}>
+                  欢迎回来，{user?.empName || user?.username || '用户'}
+                </Title>
+                <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14 }}>
+                  祝你今天工作顺利！以下是你的请假概览与最新动态。
+                </Text>
+              </div>
+            </Space>
+          </Col>
+          <Col>
+            <Space size={12}>
+              <div style={styles.welcomeStat}>
+                <div style={styles.welcomeStatValue}>
+                  {statusItems.reduce(
+                    (sum, item) => sum + Number(item.value || 0),
+                    0,
+                  )}
+                </div>
+                <div style={styles.welcomeStatLabel}>总申请数</div>
+              </div>
+              <div style={styles.welcomeDivider} />
+              <div style={styles.welcomeStat}>
+                <div style={styles.welcomeStatValue}>
+                  {Number(
+                    leaveStatusData?.pendingCount ||
+                      statusItems.find((s) => s.key === 'pending')?.value ||
+                      0,
+                  )}
+                </div>
+                <div style={styles.welcomeStatLabel}>待审批</div>
+              </div>
+              <div style={styles.welcomeDivider} />
+              <div style={styles.welcomeStat}>
+                <div style={styles.welcomeStatValue}>
+                  {Number(
+                    leaveStatusData?.approvedCount ||
+                      statusItems.find((s) => s.key === 'approved')?.value ||
+                      0,
+                  )}
+                </div>
+                <div style={styles.welcomeStatLabel}>已通过</div>
+              </div>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
+
+      {/* 请假类型统计 + 消息提醒 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} lg={14}>
           <Card
@@ -233,49 +225,7 @@ const OtherRole = () => {
             style={styles.card}
             title={
               <Space>
-                <CheckCircleOutlined />
-                审批状态统计
-              </Space>
-            }
-          >
-            <Skeleton active loading={statusLoading} paragraph={{ rows: 4 }}>
-              <Row gutter={[12, 12]}>
-                {statusItems.map((item) => (
-                  <Col xs={12} key={item.key}>
-                    <div style={styles.statusCard}>
-                      <Avatar
-                        size={38}
-                        icon={item.icon}
-                        style={{ background: item.bg, color: item.color }}
-                      />
-                      <Statistic
-                        title={item.label}
-                        value={item.value}
-                        valueStyle={{ color: '#111827', fontWeight: 800 }}
-                      />
-                    </div>
-                  </Col>
-                ))}
-              </Row>
-              <div style={styles.statusFooter}>
-                <Text style={styles.statusFooterText}>合计</Text>
-                <Text strong style={styles.statusFooterText}>
-                  {totalStatusCount} 条
-                </Text>
-              </div>
-            </Skeleton>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]}>
-        <Col xs={24} xl={9}>
-          <Card
-            bordered={false}
-            style={styles.card}
-            title={
-              <Space>
-                <InboxOutlined />
+                <BellOutlined />
                 消息提醒
               </Space>
             }
@@ -304,40 +254,56 @@ const OtherRole = () => {
             />
           </Card>
         </Col>
+      </Row>
 
-        <Col xs={24} xl={15}>
-          <Card
-            bordered={false}
-            style={styles.card}
-            title={
-              <Space>
-                <FileTextOutlined />
-                请假申请记录
-              </Space>
-            }
-          >
-            <Table
-              rowKey="id"
-              columns={leaveColumns}
-              dataSource={leaveListData?.records || []}
-              loading={listLoading}
-              scroll={{ x: 1180 }}
-              pagination={{
-                current: leavePage.pageNum,
-                pageSize: leavePage.pageSize,
-                total: leaveListData?.total || 0,
-                showQuickJumper: true,
-                showSizeChanger: true,
-                pageSizeOptions,
-                showTotal: (total) => `共 ${total} 条`,
-              }}
-              onChange={(pagination) =>
-                setLeavePage({
-                  pageNum: pagination.current,
-                  pageSize: pagination.pageSize,
-                })
-              }
-            />
+      {/* 公告与提示 */}
+      <div style={styles.sectionTitle}>
+        <BulbOutlined style={{ color: '#3b82f6' }} />
+        <span>公告与提示</span>
+      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} md={8}>
+          <Card bordered={false} style={styles.tipCard}>
+            <div style={styles.tipIconWrap}>
+              <SafetyCertificateOutlined
+                style={{ fontSize: 28, color: '#10b981' }}
+              />
+            </div>
+            <Text strong style={{ fontSize: 15, display: 'block', marginBottom: 8 }}>
+              签名管理须知
+            </Text>
+            <Text type="secondary" style={{ fontSize: 13, lineHeight: 1.8 }}>
+              请假审批前请确保已上传电子签名，申请人与班组长签名均为必需项。
+              可在"个人设置"中随时更新签名图片。
+            </Text>
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card bordered={false} style={styles.tipCard}>
+            <div style={styles.tipIconWrap}>
+              <CalendarOutlined style={{ fontSize: 28, color: '#3b82f6' }} />
+            </div>
+            <Text strong style={{ fontSize: 15, display: 'block', marginBottom: 8 }}>
+              请假流程说明
+            </Text>
+            <Text type="secondary" style={{ fontSize: 13, lineHeight: 1.8 }}>
+              提交请假申请后，需经班组长初审、部门领导复审。
+              审批通过后系统将自动生成请假单，支持批量打印功能。
+            </Text>
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card bordered={false} style={styles.tipCard}>
+            <div style={styles.tipIconWrap}>
+              <TeamOutlined style={{ fontSize: 28, color: '#f59e0b' }} />
+            </div>
+            <Text strong style={{ fontSize: 15, display: 'block', marginBottom: 8 }}>
+              考勤纪律提醒
+            </Text>
+            <Text type="secondary" style={{ fontSize: 13, lineHeight: 1.8 }}>
+              请按照公司考勤制度及时提交请假申请，病假需附相关证明。
+              无故缺勤将影响月度考勤评定，请合理安排假期。
+            </Text>
           </Card>
         </Col>
       </Row>
@@ -372,7 +338,6 @@ const buildStatusItems = (data = {}) => [
     key: 'pending',
     label: '待审批',
     value: Number(data?.pendingCount || 0),
-    icon: <ClockCircleOutlined />,
     color: '#d97706',
     bg: '#fff7e6',
   },
@@ -380,10 +345,9 @@ const buildStatusItems = (data = {}) => [
     key: 'approved',
     label: '已通过',
     value: Number(data?.approvedCount || 0),
-    icon: <CheckCircleOutlined />,
     color: '#16a34a',
     bg: '#f0fdf4',
-  }
+  },
 ];
 
 const safeFormatTime = (time) => {
@@ -435,28 +399,6 @@ const styles = {
     fontSize: 18,
     fontWeight: 800,
   },
-  statusCard: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    minHeight: 86,
-    padding: 14,
-    borderRadius: 8,
-    background: '#f8fafc',
-    border: '1px solid #eef2f7',
-  },
-  statusFooter: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginTop: 14,
-    padding: '12px 14px',
-    borderRadius: 8,
-    background: '#111827',
-    color: '#fff',
-  },
-  statusFooterText: {
-    color: '#fff',
-  },
   strongText: {
     maxWidth: 320,
     color: '#111827',
@@ -482,6 +424,58 @@ const styles = {
     wordBreak: 'break-word',
     color: '#111827',
     lineHeight: 1.8,
+  },
+  welcomeCard: {
+    marginBottom: 20,
+    borderRadius: 12,
+    background: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)',
+    border: 'none',
+    boxShadow: '0 8px 32px rgba(37, 99, 235, 0.25)',
+  },
+  welcomeStat: {
+    textAlign: 'center',
+    padding: '4px 20px',
+  },
+  welcomeStatValue: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: 800,
+    lineHeight: 1.2,
+  },
+  welcomeStatLabel: {
+    color: 'rgba(255,255,255,0.65)',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  welcomeDivider: {
+    width: 1,
+    height: 40,
+    background: 'rgba(255,255,255,0.2)',
+  },
+  sectionTitle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 16,
+    fontWeight: 700,
+    color: '#111827',
+    marginBottom: 12,
+  },
+  tipCard: {
+    height: '100%',
+    borderRadius: 12,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+    border: '1px solid #f0f0f0',
+  },
+  tipIconWrap: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    background: '#f0fdf4',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
 };
 

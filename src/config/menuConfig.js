@@ -23,6 +23,7 @@ const OrganizationSettings = lazy(() => import('@/pages/org_settings'));
 const UserSettings = lazy(() => import('@/pages/user_settings'));
 const ApproveSettings = lazy(() => import('@/pages/approve_settings'));
 const LeavesSettings = lazy(() => import('@/pages/leaves_settings'));
+const LeaveHistory = lazy(() => import('@/pages/leave_history'));
 
 const withSuspense = (Component) => {
     return  React.createElement(
@@ -56,6 +57,13 @@ export const menuConfig = [
         label: '请假申请',
         roles: commonRoleList,
         element: withSuspense(InitiateLeave),
+    },
+    {
+        key: '/leave-history',
+        icon: CalendarOutlined,
+        label: '请假历史',
+        roles: commonRoleList.concat(ApprovableRoleList),
+        element: withSuspense(LeaveHistory),
     },
     {
         key: '/organization-settings',

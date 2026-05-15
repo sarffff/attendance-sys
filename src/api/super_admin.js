@@ -156,7 +156,7 @@ export const leaveApplyTimeEditApi = (leaveId, data) => {
 export const leaveApproveTimeEditApi = (leaveId, data) => {
   return request({
     url: `/leaves/${leaveId}/signature-date`,
-    method: 'PUT',
+    method: 'PATCH',
     data
   });
 }
