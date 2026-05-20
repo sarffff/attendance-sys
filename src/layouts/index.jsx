@@ -29,7 +29,7 @@ import { menuConfig } from '@/config/menuConfig';
 import { userResetPasswordApi } from '@/api/super_admin';
 const { Header, Sider, Content } = Layout;
 const { Text, Title } = Typography;
-
+const allLedgerRoles = [1,4];
 const AppLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
@@ -77,9 +77,17 @@ const AppLayout = () => {
   };
 
   const menuItems = menuConfig
+    .filter(item => item.key !== '/hr-ledger-detail')
     .filter(
       (item) => item.roles === null || item.roles.includes(user?.roleCode),
     )
+    .filter((item) => {
+      if (!allLedgerRoles.includes(user?.orgUnitId)) {
+        return !item.isAll;
+      } else {
+        return !item.isCommon;
+      }
+    })
     .map(({ key, icon, label }) => ({
       key,
       icon: React.createElement(icon),

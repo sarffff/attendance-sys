@@ -19,6 +19,10 @@ service.interceptors.request.use(config => {
 // 响应拦截
 service.interceptors.response.use(
   res => {
+    if (res.config.responseType === 'blob') {
+      return res.data
+    }
+
     const { success, message: msg, data } = res.data
     if (!success) {
       message.error(msg || "操作失败")

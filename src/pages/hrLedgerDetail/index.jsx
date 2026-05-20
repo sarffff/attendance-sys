@@ -1,0 +1,533 @@
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import {
+  Card,
+  Table,
+  Tag,
+  Descriptions,
+  Spin,
+  Empty,
+  Button,
+  Space,
+  message,
+  Timeline,
+  Divider,
+} from 'antd';
+import {
+  FileExcelOutlined,
+  FilePdfOutlined,
+  SwapOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
+import {
+  getLedgerDetail,
+  exportLedgerExcel,
+  compareLedger,
+  getConfig,
+} from '@/api/ledger';
+import dayjs from 'dayjs';
+import { useAppSelector } from '@/hooks/useAppSelector';
+import { actionMap, STATUS_MAP, DEFAULT_CONFIG } from '@/constants/constantsMap';
+import { formatTime } from '@/utils/formatTime';
+
+
+const COMPARE_TYPE_MAP = {
+  CHANGED: { text: '变更', color: 'blue' },
+  ADDED: { text: '新增', color: 'green' },
+  REMOVED: { text: '减少', color: 'red' },
+};
+
+
+const styles = {
+  page: { display: 'flex', flexDirection: 'column', gap: 16 },
+  exportBar: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: '#1a1a1a',
+    marginBottom: 12,
+  },
+  approvalCard: {
+    background: '#fafafa',
+    borderRadius: 8,
+    padding: '12px 16px',
+    marginBottom: 0,
+  },
+  compareCard: {
+    background: '#f6ffed',
+    borderRadius: 8,
+    padding: '12px 16px',
+  },
+  emptyWrap: { padding: '80px 0', textAlign: 'center' },
+};
+
+const detailRoles = ['ATTENDANCE_ADMIN', 'HR_SECTION_CHIEF']
+
+const HRLedgerDetail = () => {
+  const user = useAppSelector((state) => state.user.userInfo);
+  const [searchParams] = useSearchParams();
+  const ledgerId = searchParams.get('orgUnitId') ?? searchParams.get('id');
+
+  const [ledger, setLedger] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [cfg, setCfg] = useState(DEFAULT_CONFIG);
+
+  const [compareData, setCompareData] = useState(null);
+  const [compareLoading, setCompareLoading] = useState(false);
+
+  const loadConfig = useCallback(async () => {
+    try {
+      const data = await getConfig();
+      if (data) {
+        setCfg({
+          teamLeaderColor:
+            data.team_leader_color || DEFAULT_CONFIG.teamLeaderColor,
+          learnerColor: data.learner_color || DEFAULT_CONFIG.learnerColor,
+          newEmployeeColor:
+            data.new_employee_color || DEFAULT_CONFIG.newEmployeeColor,
+          showTeamLeaderColor: data.show_team_leader_color !== 'false',
+          showLearnerColor: data.show_learner_color !== 'false',
+          showNewEmployeeColor: data.show_new_employee_color !== 'false',
+          showAge: data.show_age !== 'false',
+        });
+      }
+    } catch {
+      // 使用默认配置
+    }
+  }, []);
+
+  const loadLedger = useCallback(async () => {
+    if (!ledgerId) return;
+    setLoading(true);
+    try {
+      const data = await getLedgerDetail(ledgerId);
+      setLedger(data || null);
+    } catch {
+      setLedger(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [ledgerId]);
+
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
+
+  useEffect(() => {
+    loadLedger();
+  }, [loadLedger]);
+
+
+  const rowClassName = (record) => {
+    if (record.isTeamLeader === 1 && cfg.showTeamLeaderColor)
+      return 'row-team-leader';
+    if (record.isNonWorking === 1) return 'row-non-working';
+    if (
+      (record.categoryMinor === '学习' ||
+        record.categoryMinor === '学习人员') &&
+      cfg.showLearnerColor
+    )
+      return 'row-learner';
+    if (
+      (record.categoryMinor === '新职' ||
+        record.categoryMinor === '新职人员') &&
+      cfg.showNewEmployeeColor
+    )
+      return 'row-new-employee';
+    return '';
+  };
+
+  const rowStyle = (record) => {
+    if (record.isTeamLeader === 1 && cfg.showTeamLeaderColor)
+      return { backgroundColor: cfg.teamLeaderColor };
+    if (
+      (record.categoryMinor === '学习' ||
+        record.categoryMinor === '学习人员') &&
+      cfg.showLearnerColor
+    )
+      return { backgroundColor: cfg.learnerColor };
+    if (
+      (record.categoryMinor === '新职' ||
+        record.categoryMinor === '新职人员') &&
+      cfg.showNewEmployeeColor
+    )
+      return { backgroundColor: cfg.newEmployeeColor };
+    return {};
+  };
+
+  const handleExportExcel = async () => {
+    if (!ledger) return;
+    try {
+      message.loading('正在生成Excel...', 0);
+      const blob = await exportLedgerExcel(ledger.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `现员台账_${ledger.orgUnitName}_${ledger.ledgerMonth}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      message.destroy();
+      message.success('Excel下载成功');
+    } catch {
+      message.destroy();
+      message.error('Excel导出失败');
+    }
+  };
+
+  const handleCompare = async () => {
+    if (!ledger) return;
+    setCompareLoading(true);
+    try {
+      const data = await compareLedger(ledger.id);
+      setCompareData(data || null);
+      if (!data) {
+        message.info('暂无对比数据');
+      }
+    } catch {
+      message.error('加载对比数据失败');
+    } finally {
+      setCompareLoading(false);
+    }
+  };
+
+  const columns = useMemo(() => {
+
+    const renderShiftName = (record, shiftName) =>
+      record.shiftType === shiftName ? record.empName : '';
+
+    return [
+      {
+        title: '岗点',
+        dataIndex: 'stationPoint',
+        width: 120,
+        align: 'center',
+
+      },
+      {
+        title: '班组',
+        dataIndex: 'teamName',
+        width: 140,
+        align: 'center',
+      },
+      {
+        title: '岗位',
+        dataIndex: 'workType',
+        width: 140,
+        align: 'center',
+      },
+      {
+        title: '班别',
+        align: 'center',
+        children: ['甲班', '乙班', '丙班', '丁班', '预备'].map((shiftName) => ({
+          title: shiftName,
+          align: 'center',
+          children: [
+            {
+              title: '姓名',
+              dataIndex: `${shiftName}Name`,
+              width: 110,
+              align: 'center',
+              render: (_, record) => renderShiftName(record, shiftName),
+            },
+          ],
+        })),
+      },
+      {
+        title: '班制',
+        dataIndex: 'shiftType',
+        width: 120,
+        align: 'center',
+      },
+      {
+        title: '日勤',
+        align: 'center',
+        children: [
+          {
+            title: '姓名',
+            dataIndex: 'dayShiftName',
+            width: 110,
+            align: 'center',
+            render: (_, record) => renderShiftName(record, '日勤'),
+          },
+        ],
+      },
+      {
+        title: '职务',
+        dataIndex: 'identityType',
+        width: 120,
+        align: 'center',
+      },
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cfg]);
+
+  const compareColumns = [
+    { title: '姓名', dataIndex: 'empName', width: 90 },
+    { title: '身份证号', dataIndex: 'idCardNo', width: 175 },
+    { title: '变更字段', dataIndex: 'field', width: 100 },
+    { title: '上月值', dataIndex: 'previousValue', width: 150 },
+    { title: '本月值', dataIndex: 'currentValue', width: 150 },
+    {
+      title: '变更类型',
+      dataIndex: 'changeType',
+      width: 90,
+      render: (v) => {
+        const t = COMPARE_TYPE_MAP[v];
+        return <Tag color={t?.color}>{t?.text || v}</Tag>;
+      },
+    },
+  ];
+
+  if (!ledgerId) {
+    return (
+      <Card>
+        <div style={styles.emptyWrap}>
+          <Empty description="缺少台账ID参数" />
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Spin spinning={loading}>
+      {!ledger && !loading ? (
+        <Card>
+          <div style={styles.emptyWrap}>
+            <Empty description="台账不存在或加载失败" />
+          </div>
+        </Card>
+      ) : ledger ? (
+        <div style={styles.page}>
+          {user.roleCode && detailRoles.includes(user.roleCode) ? (  <div style={styles.exportBar}>
+            <Space>
+              <Button
+                icon={<FileExcelOutlined />}
+                style={{
+                  color: '#fff',
+                  background: 'linear-gradient(135deg, #52c41a, #389e0d)',
+                  border: 'none',
+                  borderRadius: 9999,
+                  fontWeight: 500,
+                }}
+                onClick={handleExportExcel}
+              >
+                导出Excel
+              </Button>
+              <Button
+                icon={<SwapOutlined />}
+                loading={compareLoading}
+                style={{
+                  color: '#fff',
+                  background: 'linear-gradient(135deg, #409EFF, #1677ff)',
+                  border: 'none',
+                  borderRadius: 9999,
+                  fontWeight: 500,
+                }}
+                onClick={handleCompare}
+              >
+                月度对比
+              </Button>
+              <Button icon={<ReloadOutlined />} onClick={loadLedger}>
+                刷新
+              </Button>
+            </Space>
+          </div>) : null}
+
+          <Card size="small">
+            <Descriptions size="small" column={4} bordered>
+              <Descriptions.Item label="台账ID">{ledger.id}</Descriptions.Item>
+              <Descriptions.Item label="组织ID">
+                {ledger.orgUnitId}
+              </Descriptions.Item>
+              <Descriptions.Item label="车间">
+                {ledger.orgUnitName}
+              </Descriptions.Item>
+              <Descriptions.Item label="台账月份">
+                {ledger.ledgerMonth}
+              </Descriptions.Item>
+              <Descriptions.Item label="状态">
+                <Tag color={STATUS_MAP[ledger.status]?.color}>
+                  {STATUS_MAP[ledger.status]?.text || ledger.status}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="在岗人数">
+                {ledger.inWorkCount}
+              </Descriptions.Item>
+              <Descriptions.Item label="创建人">
+                {ledger.creatorName}
+              </Descriptions.Item>
+              <Descriptions.Item label="创建时间">
+                {ledger.createdAt
+                  ? dayjs(ledger.createdAt).format('YYYY-MM-DD HH:mm')
+                  : ''}
+              </Descriptions.Item>
+              <Descriptions.Item label="提交时间">
+                {ledger.submittedAt
+                  ? dayjs(ledger.submittedAt).format('YYYY-MM-DD HH:mm')
+                  : ''}
+              </Descriptions.Item>
+              <Descriptions.Item label="更新时间">
+                {ledger.updatedAt
+                  ? dayjs(ledger.updatedAt).format('YYYY-MM-DD HH:mm')
+                  : ''}
+              </Descriptions.Item>
+              <Descriptions.Item label="备注" span={2}>
+                {ledger.remark || '无'}
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+
+          {/* 审批信息 */}
+          {(ledger.directorName || ledger.hrName) && (
+            <Card size="small" title="审批信息">
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 16,
+                }}
+              >
+                {ledger.directorName && (
+                  <div style={styles.approvalCard}>
+                    <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                      主任审批
+                    </div>
+                    <div>审批人：{ledger.directorName}</div>
+                    <div>审批意见：{ledger.directorOpinion || '无'}</div>
+                    <div>
+                      审批时间：
+                      {ledger.directorApprovedAt
+                        ? dayjs(ledger.directorApprovedAt).format(
+                            'YYYY-MM-DD HH:mm',
+                          )
+                        : ''}
+                    </div>
+                  </div>
+                )}
+                {ledger.hrName && (
+                  <div style={styles.approvalCard}>
+                    <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                      人事科审核
+                    </div>
+                    <div>审核人：{ledger.hrName}</div>
+                    <div>审核意见：{ledger.hrOpinion || '无'}</div>
+                    <div>
+                      审核时间：
+                      {ledger.hrApprovedAt
+                        ? dayjs(ledger.hrApprovedAt).format('YYYY-MM-DD HH:mm')
+                        : ''}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {/* 在岗人员明细 */}
+          <Card
+            size="small"
+            title={`在岗人员明细（${(ledger.details || []).length}人）`}
+          >
+            <Table
+              columns={columns}
+              dataSource={ledger.details || []}
+              rowKey="id"
+              rowClassName={rowClassName}
+              onRow={(record) => ({ style: rowStyle(record) })}
+              scroll={{ x: 'max-content' }}
+              size="small"
+              bordered
+              pagination={false}
+            />
+          </Card>
+
+          {/* 审批记录 */}
+          {(ledger.approvalRecords || []).length > 0 && (
+            <Card size="small" title="审批记录">
+              <Timeline
+                items={ledger.approvalRecords.map((record) => ({
+                  color:
+                    record.action === 'RETURN'
+                      ? 'orange'
+                      : record.action === 'REJECT'
+                        ? 'red'
+                        : 'green',
+                  children: (
+                    <div>
+                      <div>
+                        <strong>{record.operatorName}</strong>
+                        <Tag
+                          color={
+                            record.action === 'RETURN'
+                              ? 'orange'
+                              : record.action === 'REJECT'
+                                ? 'red'
+                                : 'green'
+                          }
+                          style={{ marginLeft: 8 }}
+                        >
+                          {record.step === 'DIRECTOR' ? '主任审批' : '人事审核'}
+                          {actionMap[record.action] ? ` - ${actionMap[record.action]}` : ''}
+                        </Tag>
+                        <span
+                          style={{ color: '#999', marginLeft: 8, fontSize: 12 }}
+                        >
+                          {record.createdAt
+                            ? formatTime(record.createdAt)
+                            : ''}
+                        </span>
+                      </div>
+                      {record.opinion && (
+                        <div
+                          style={{ color: '#666', marginTop: 4, fontSize: 13 }}
+                        >
+                          {record.opinion}
+                        </div>
+                      )}
+                    </div>
+                  ),
+                }))}
+              />
+            </Card>
+          )}
+
+          {/* 月度对比 */}
+          {compareData && (
+            <Card
+              size="small"
+              title={`月度对比：${compareData.currentMonth} vs ${compareData.previousMonth}`}
+            >
+              {(compareData.differences || []).length === 0 ? (
+                <Empty description="两个月份数据无差异" />
+              ) : (
+                <Table
+                  columns={compareColumns}
+                  dataSource={compareData.differences}
+                  rowKey={(_, i) => i}
+                  scroll={{ x: 'max-content' }}
+                  size="small"
+                  bordered
+                  pagination={false}
+                />
+              )}
+            </Card>
+          )}
+
+          <style>{`
+            .row-team-leader td { font-weight: 600 !important; }
+            .row-non-working td { color: #999 !important; font-style: italic !important; }
+          `}</style>
+        </div>
+      ) : null}
+    </Spin>
+  );
+};
+
+export default HRLedgerDetail;

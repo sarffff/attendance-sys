@@ -10,11 +10,12 @@ import {
   DatePicker,
 } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import BaseTable from '@/components/BaseTable';
 import BaseForm from '@/components/BaseForm';
 import NoOperation from '@/components/NoOperation';
 import LeaveDetailModal from '@/components/LeaveDetailModal';
+import HanwangSignatureModal from '@/components/HanwangSignatureModal';
 import {
   leacesMonthlyListApi,
   leacesTypeApi,
@@ -28,8 +29,9 @@ import {
   leacesBatchPrintApi,
   leacesUploadSignatureApi,
 } from '@/api/leaves';
-import { useFetch } from '../../hooks/useFetch';
-import { formatTime } from '../../utils/formatTime';
+import { useFetch } from '@/hooks/useFetch';
+import { formatTime } from '@/utils/formatTime';
+import { base64ToFile } from '@/utils/base64ToFile';
 import { useAppSelector } from '@/store/hooks';
 import { leaveStatusMap as map, applicantType } from '@/constants/constantsMap';
 import dayjs from 'dayjs';
@@ -51,10 +53,7 @@ const InitiateLeave = () => {
   const [signatureOpen, setSignatureOpen] = useState(false);
   const [signatureRecord, setSignatureRecord] = useState(null);
   const [signatureApplicantType, setSignatureApplicantType] = useState(null);
-  const [hasSignature, setHasSignature] = useState(false);
   const [signatureDate, setSignatureDate] = useState(null);
-  const signatureCanvasRef = useRef(null);
-  const signatureDrawingRef = useRef(false);
   const [hasEditId, setHasEditId] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
   const [currentDetail, setCurrentDetail] = useState(null);
@@ -65,11 +64,6 @@ const InitiateLeave = () => {
   });
   const { data } = useFetch(leacesTypeApi);
   const { data: statusData } = useFetch(leacesStatusApi);
-  useEffect(() => {
-    if (signatureOpen) {
-      setTimeout(() => resetSignatureCanvas(), 0);
-    }
-  }, [signatureOpen]);
 
   const applicantTypeOptions = useMemo(() => {
     return Object.entries(applicantType).map(([key, value]) => ({
@@ -103,6 +97,18 @@ const InitiateLeave = () => {
         rules: [{ required: true, message: '请输入班组长姓名' }],
         placeholder: '请输入班组长姓名',
         field: 'teamLeaderSnapshot',
+      },
+      {
+        group: '基本信息',
+        type: 'radio',
+        label: '是否提前党委书记签字',
+        rules: [{ required: true, message: '请选择是否提前党委书记签字' }],
+        placeholder: '请选择是否提前党委书记签字',
+        options: [
+          { label: '是', value: true },
+          { label: '否', value: false },
+        ],
+        field: 'partySecretaryFirst',
       },
       {
         group: '请假信息',
@@ -253,13 +259,15 @@ const InitiateLeave = () => {
     const formData = new FormData();
     formData.append('signatureFile', file);
     formData.append('applicantType', applicantType);
-    if (!signatureDate) {
-      message.warning('未选择签名日期，将使用当前日期作为签名日期');
-    } else {
-      formData.append(
-        'signatureDate',
-        dayjs(signatureDate).format('YYYY-MM-DDT00:00:00'),
-      );
+    if (applicantType === 'TEAM_LEADER') {
+      if (!signatureDate) {
+        message.warning('未选择签名日期，将使用当前日期作为签名日期');
+      } else {
+        formData.append(
+          'signatureDate',
+          dayjs(signatureDate).format('YYYY-MM-DDT00:00:00'),
+        );
+      }
     }
 
     if (applicantType === 'APPLICANT') {
@@ -290,86 +298,12 @@ const InitiateLeave = () => {
     setSignatureOpen(true);
   };
 
-  const resetSignatureCanvas = () => {
-    const canvas = signatureCanvasRef.current;
-    if (!canvas) return;
-
-    const ratio = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    const width = rect.width || 520;
-    const height = rect.height || 220;
-    canvas.width = width * ratio;
-    canvas.height = height * ratio;
-
-    const context = canvas.getContext('2d');
-    context.scale(ratio, ratio);
-    context.fillStyle = '#fff';
-    context.fillRect(0, 0, width, height);
-    context.lineWidth = 3;
-    context.lineCap = 'round';
-    context.lineJoin = 'round';
-    context.strokeStyle = '#111827';
-    setHasSignature(false);
-  };
-
-  const getSignaturePoint = (event) => {
-    const canvas = signatureCanvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    };
-  };
-
-  const handleSignatureStart = (event) => {
-    const canvas = signatureCanvasRef.current;
-    const context = canvas.getContext('2d');
-    const point = getSignaturePoint(event);
-
-    signatureDrawingRef.current = true;
-    canvas.setPointerCapture?.(event.pointerId);
-    context.beginPath();
-    context.moveTo(point.x, point.y);
-    setHasSignature(true);
-  };
-
-  const handleSignatureMove = (event) => {
-    if (!signatureDrawingRef.current) return;
-
-    const context = signatureCanvasRef.current.getContext('2d');
-    const point = getSignaturePoint(event);
-    context.lineTo(point.x, point.y);
-    context.stroke();
-  };
-
-  const handleSignatureEnd = () => {
-    signatureDrawingRef.current = false;
-  };
-
-  const handleSignatureSubmit = async () => {
+  const handleSignatureSubmit = async (preview) => {
     if (!signatureRecord) return;
 
-    if (!hasSignature) {
-      message.warning('请先手写签名');
-      return;
-    }
-
-    const canvas = signatureCanvasRef.current;
-    const blob = await new Promise((resolve) => {
-      canvas.toBlob(resolve, 'image/png');
-    });
-
-    if (!blob) {
-      message.error('签名生成失败');
-      return;
-    }
-
-    const signatureFile = new File(
-      [blob],
+    const signatureFile = base64ToFile(
+      preview,
       `signature-${signatureRecord.id}.png`,
-      {
-        type: 'image/png',
-      },
     );
 
     await handleUploadSignature(
@@ -379,9 +313,11 @@ const InitiateLeave = () => {
     );
     setSignatureOpen(false);
     setSignatureRecord(null);
+    setSignatureApplicantType(null);
   };
 
   const optionSetting = (record) => {
+    const isEmployee = record.applicantType === 'EMPLOYEE';
     switch (record.status) {
       case 'PENDING':
         return (
@@ -504,7 +440,7 @@ const InitiateLeave = () => {
                   申请人签字
                 </Button>
               </div>
-              {record.applicantType === 'EMPLOYEE' ? (
+              {isEmployee ? (
                 <div style={{ flex: 1 }}>
                   <Button
                     loading={uploadingLeaveIdTeamLeader === record.id}
@@ -529,7 +465,7 @@ const InitiateLeave = () => {
                   </Button>
                 </div>
               ) : null}
-              {record.applicantType === 'EMPLOYEE' ? (
+              {isEmployee ? (
                 <div style={{ flex: 1 }}>
                   <Button
                     style={{
@@ -562,13 +498,12 @@ const InitiateLeave = () => {
         return (
           <div
             style={{
-              display: 'flex',
-              alignItems: 'center',
+              display: 'grid',
+              gridTemplateColumns: isEmployee ? '1fr 1fr' : '1fr',
+              gridTemplateRows: isEmployee ? 'auto auto' : 'auto',
               gap: '8px',
-              width: '100%',
             }}
           >
-            <div style={{ flex: 1 }}>
               <Button
                 type="primary"
                 style={{
@@ -587,7 +522,80 @@ const InitiateLeave = () => {
               >
                 打印请假单
               </Button>
-            </div>
+              <div>
+                <Button
+                  loading={uploadingLeaveIdApplicant === record.id}
+                  style={{
+                    width: '100%',
+                    marginBottom: 8,
+                    color: '#fff',
+                    background:
+                      'linear-gradient(135deg, #409EFF 0%, #1677ff 100%)',
+                    border: 'none',
+                    borderRadius: '9999px',
+                    padding: '8px 24px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    boxShadow: '0 2px 6px rgba(64, 158, 255, 0.3)',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onClick={() => openSignatureModal(record, 'APPLICANT')}
+                >
+                  申请人签字
+                </Button>
+              </div>
+              {record.applicantType === 'EMPLOYEE' ? (
+                <div>
+                  <Button
+                    loading={uploadingLeaveIdTeamLeader === record.id}
+                    style={{
+                      width: '100%',
+                      marginBottom: 8,
+                      color: '#fff',
+                      background:
+                        'linear-gradient(135deg, #409EFF 0%, #1677ff 100%)',
+                      border: 'none',
+                      borderRadius: '9999px',
+                      padding: '8px 24px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      boxShadow: '0 2px 6px rgba(64, 158, 255, 0.3)',
+                      transition: 'all 0.2s ease',
+                      whiteSpace: 'nowrap',
+                    }}
+                    onClick={() => openSignatureModal(record, 'TEAM_LEADER')}
+                  >
+                    班组长签字
+                  </Button>
+                </div>
+              ) : null}
+              {record.applicantType === 'EMPLOYEE' ? (
+                <div>
+                  <Button
+                    style={{
+                      width: '100%',
+                      color: '#fff',
+                      background:
+                        'linear-gradient(135deg, #67C23A 0%, #529b2e 100%)',
+                      border: 'none',
+                      borderRadius: '9999px',
+                      padding: '8px 24px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      boxShadow: '0 2px 6px rgba(103, 194, 58, 0.3)',
+                      transition: 'all 0.2s ease',
+                      whiteSpace: 'nowrap',
+                    }}
+                    onClick={() => {
+                      setSignatureRecord(record);
+                      setSignatureDateOpen(true);
+                    }}
+                  >
+                    班组长上传签名日期
+                  </Button>
+                </div>
+              ) : null}
           </div>
         );
       case 'REJECTED':
@@ -659,6 +667,7 @@ const InitiateLeave = () => {
   const handleEdit = (record) => {
     form.setFieldsValue({
       ...record,
+      partySecretaryFirst: record.partySecretaryFirst === 1 ? true : false,
       startTime: dayjs(record.startTime),
       endTime: dayjs(record.endTime),
       submittedAt: dayjs(record.submittedAt),
@@ -943,8 +952,7 @@ const InitiateLeave = () => {
         </Form>
       </Modal>
 
-      <Modal
-        title="签名信息"
+      <HanwangSignatureModal
         open={signatureOpen}
         onOk={handleSignatureSubmit}
         onCancel={() => {
@@ -959,46 +967,8 @@ const InitiateLeave = () => {
             ? uploadingLeaveIdApplicant === signatureRecord?.id
             : uploadingLeaveIdTeamLeader === signatureRecord?.id
         }
-        destroyOnHidden={true}
-      >
-        <div
-          style={{
-            border: '1px dashed #d9d9d9',
-            borderRadius: 8,
-            padding: 12,
-            background: '#fafafa',
-          }}
-        >
-          <canvas
-            ref={signatureCanvasRef}
-            onPointerDown={handleSignatureStart}
-            onPointerMove={handleSignatureMove}
-            onPointerUp={handleSignatureEnd}
-            onPointerCancel={handleSignatureEnd}
-            onPointerLeave={handleSignatureEnd}
-            style={{
-              width: '100%',
-              height: 220,
-              display: 'block',
-              background: '#fff',
-              borderRadius: 6,
-              touchAction: 'none',
-              cursor: 'crosshair',
-            }}
-          />
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginTop: 12,
-          }}
-        >
-          <span style={{ color: '#909399' }}>请在上方区域手写签名</span>
-          <Button onClick={resetSignatureCanvas}>清空</Button>
-        </div>
-      </Modal>
+        destroyOnHidden
+      />
 
       <LeaveDetailModal
         open={detailVisible}

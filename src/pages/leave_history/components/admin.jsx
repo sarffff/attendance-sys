@@ -9,12 +9,12 @@ import {
   Popconfirm,
   DatePicker,
 } from 'antd';
-import { EditOutlined } from '@ant-design/icons';
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import BaseTable from '@/components/BaseTable';
 import BaseForm from '@/components/BaseForm';
 import NoOperation from '@/components/NoOperation';
 import LeaveDetailModal from '@/components/LeaveDetailModal';
+import HanwangSignatureModal from '@/components/HanwangSignatureModal';
 import {
   leacesTypeApi,
   leacesDetailApi,
@@ -29,6 +29,7 @@ import {
 } from '@/api/leaves';
 import { useFetch } from '@/hooks/useFetch';
 import { formatTime } from '@/utils/formatTime';
+import { base64ToFile } from '@/utils/base64ToFile';
 import { useAppSelector } from '@/store/hooks';
 import { leaveStatusMap as map, applicantType } from '@/constants/constantsMap';
 import dayjs from 'dayjs';
@@ -50,10 +51,7 @@ const AdminHistory = () => {
   const [signatureOpen, setSignatureOpen] = useState(false);
   const [signatureRecord, setSignatureRecord] = useState(null);
   const [signatureApplicantType, setSignatureApplicantType] = useState(null);
-  const [hasSignature, setHasSignature] = useState(false);
   const [signatureDate, setSignatureDate] = useState(null);
-  const signatureCanvasRef = useRef(null);
-  const signatureDrawingRef = useRef(false);
   const [hasEditId, setHasEditId] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
   const [currentDetail, setCurrentDetail] = useState(null);
@@ -62,11 +60,6 @@ const AdminHistory = () => {
     leaveTypeId: null,
   });
   const { data } = useFetch(leacesTypeApi);
-  useEffect(() => {
-    if (signatureOpen) {
-      setTimeout(() => resetSignatureCanvas(), 0);
-    }
-  }, [signatureOpen]);
 
   const applicantTypeOptions = useMemo(() => {
     return Object.entries(applicantType).map(([key, value]) => ({
@@ -250,13 +243,15 @@ const AdminHistory = () => {
     const formData = new FormData();
     formData.append('signatureFile', file);
     formData.append('applicantType', applicantType);
-    if (!signatureDate) {
-      message.warning('未选择签名日期，将使用当前日期作为签名日期');
-    } else {
-      formData.append(
-        'signatureDate',
-        dayjs(signatureDate).format('YYYY-MM-DDT00:00:00'),
-      );
+    if (applicantType === 'TEAM_LEADER') {
+      if (!signatureDate) {
+        message.warning('未选择签名日期，将使用当前日期作为签名日期');
+      } else {
+        formData.append(
+          'signatureDate',
+          dayjs(signatureDate).format('YYYY-MM-DDT00:00:00'),
+        );
+      }
     }
 
     if (applicantType === 'APPLICANT') {
@@ -287,95 +282,14 @@ const AdminHistory = () => {
     setSignatureOpen(true);
   };
 
-  const resetSignatureCanvas = () => {
-    const canvas = signatureCanvasRef.current;
-    if (!canvas) return;
-
-    const ratio = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    const width = rect.width || 520;
-    const height = rect.height || 220;
-    canvas.width = width * ratio;
-    canvas.height = height * ratio;
-
-    const context = canvas.getContext('2d');
-    context.scale(ratio, ratio);
-    context.fillStyle = '#fff';
-    context.fillRect(0, 0, width, height);
-    context.lineWidth = 3;
-    context.lineCap = 'round';
-    context.lineJoin = 'round';
-    context.strokeStyle = '#111827';
-    setHasSignature(false);
-  };
-
-  const getSignaturePoint = (event) => {
-    const canvas = signatureCanvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    };
-  };
-
-  const handleSignatureStart = (event) => {
-    const canvas = signatureCanvasRef.current;
-    const context = canvas.getContext('2d');
-    const point = getSignaturePoint(event);
-
-    signatureDrawingRef.current = true;
-    canvas.setPointerCapture?.(event.pointerId);
-    context.beginPath();
-    context.moveTo(point.x, point.y);
-    setHasSignature(true);
-  };
-
-  const handleSignatureMove = (event) => {
-    if (!signatureDrawingRef.current) return;
-
-    const context = signatureCanvasRef.current.getContext('2d');
-    const point = getSignaturePoint(event);
-    context.lineTo(point.x, point.y);
-    context.stroke();
-  };
-
-  const handleSignatureEnd = () => {
-    signatureDrawingRef.current = false;
-  };
-
-  const handleSignatureSubmit = async () => {
+  const handleSignatureSubmit = async (preview) => {
     if (!signatureRecord) return;
 
-    if (!hasSignature) {
-      message.warning('请先手写签名');
-      return;
-    }
-
-    const canvas = signatureCanvasRef.current;
-    const blob = await new Promise((resolve) => {
-      canvas.toBlob(resolve, 'image/png');
-    });
-
-    if (!blob) {
-      message.error('签名生成失败');
-      return;
-    }
-
-    const signatureFile = new File(
-      [blob],
-      `signature-${signatureRecord.id}.png`,
-      {
-        type: 'image/png',
-      },
-    );
-
-    await handleUploadSignature(
-      signatureRecord,
-      signatureFile,
-      signatureApplicantType,
-    );
+    const file = base64ToFile(preview, `signature-${signatureRecord.id}.png`);
+    await handleUploadSignature(signatureRecord, file, signatureApplicantType);
     setSignatureOpen(false);
     setSignatureRecord(null);
+    setSignatureApplicantType(null);
   };
 
   const optionSetting = (record) => {
@@ -917,8 +831,7 @@ const AdminHistory = () => {
         </Form>
       </Modal>
 
-      <Modal
-        title="签名信息"
+      <HanwangSignatureModal
         open={signatureOpen}
         onOk={handleSignatureSubmit}
         onCancel={() => {
@@ -933,46 +846,8 @@ const AdminHistory = () => {
             ? uploadingLeaveIdApplicant === signatureRecord?.id
             : uploadingLeaveIdTeamLeader === signatureRecord?.id
         }
-        destroyOnHidden={true}
-      >
-        <div
-          style={{
-            border: '1px dashed #d9d9d9',
-            borderRadius: 8,
-            padding: 12,
-            background: '#fafafa',
-          }}
-        >
-          <canvas
-            ref={signatureCanvasRef}
-            onPointerDown={handleSignatureStart}
-            onPointerMove={handleSignatureMove}
-            onPointerUp={handleSignatureEnd}
-            onPointerCancel={handleSignatureEnd}
-            onPointerLeave={handleSignatureEnd}
-            style={{
-              width: '100%',
-              height: 220,
-              display: 'block',
-              background: '#fff',
-              borderRadius: 6,
-              touchAction: 'none',
-              cursor: 'crosshair',
-            }}
-          />
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginTop: 12,
-          }}
-        >
-          <span style={{ color: '#909399' }}>请在上方区域手写签名</span>
-          <Button onClick={resetSignatureCanvas}>清空</Button>
-        </div>
-      </Modal>
+        destroyOnHidden
+      />
 
       <LeaveDetailModal
         open={detailVisible}

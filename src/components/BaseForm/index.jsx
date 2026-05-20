@@ -7,6 +7,7 @@ import {
     Row,
     Col,
     Card,
+    Radio
 } from "antd";
 
 const { TextArea } = Input;
@@ -59,6 +60,17 @@ const BaseForm = ({ schema = [], form, columns = 2 }) => {
                         style={{ width: "100%" }}
                         {...props}
                     />
+                );
+
+            case "radio":
+                return (
+                    <Radio.Group {...props}>
+                        {item.options?.map((opt) => (
+                            <Radio value={opt.value} key={opt.value}>
+                                {opt.label}
+                            </Radio>
+                        ))}
+                    </Radio.Group>
                 );
 
             default:

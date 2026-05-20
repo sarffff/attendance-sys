@@ -17,7 +17,7 @@ import { useFetch } from '@/hooks/useFetch';
 import BaseTable from '@/components/BaseTable';
 import NoOperation from '@/components/NoOperation';
 import LeaveDetailModal from '@/components/LeaveDetailModal';
-import { formatTime } from '../../utils/formatTime';
+import { formatTime } from '@/utils/formatTime';
 import {
   leacesMonthlyListApi,
   leacesTypeApi,
@@ -267,6 +267,14 @@ const Approval = () => {
     }
 
     if (!needOperation.includes(record.status)) {
+      return false;
+    }
+
+    if(record.applicantType === 'WORKSHOP_DIRECTOR' && record.currentStep === 1) {
+      return user.roleCode === 'WORKSHOP_PARTY_SECRETARY';
+    }
+
+    if (record.currentApproverId && record.currentApproverId !== user.roleCode) {
       return false;
     }
 

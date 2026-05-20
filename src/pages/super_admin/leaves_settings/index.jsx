@@ -30,7 +30,7 @@ import { useFetch } from '@/hooks/useFetch';
 import BaseTable from '@/components/BaseTable';
 import { formatTime } from '@/utils/formatTime';
 import { leaveStatusMap as map, applicantType } from '@/constants/constantsMap';
-import { leaveStatusMap } from '../../constants/constantsMap';
+import { leaveStatusMap } from '@/constants/constantsMap';
 
 const { Title } = Typography;
 

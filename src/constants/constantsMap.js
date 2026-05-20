@@ -7,16 +7,17 @@ export const approvalScope = {
 export const applicantType = {
   'SECTION_LEVEL_CADRE': '中层正职',
   'EMPLOYEE': '职工',
-  'GENERAL_CADRE': '一般干部'
+  'GENERAL_CADRE': '一般干部',
+  'WORKSHOP_DIRECTOR': '车间主任'
 }
 
 export const leave_step = {
-  1: ['ORG_PRINCIPAL','HR_SECTION_CHIEF'],
+  1: ['ORG_PRINCIPAL','HR_SECTION_CHIEF','WORKSHOP_PARTY_SECRETARY'],
   2: 'HR_SECTION_CHIEF',
-  3: ['ORG_PRINCIPAL','HR_SECTION_CHIEF'],
+  3: ['ORG_PRINCIPAL','HR_SECTION_CHIEF','WORKSHOP_PARTY_SECRETARY'],
   4: ['STATIONMASTER', 'DEPUTY_STATIONMASTER'],
   5: ['PARTY_SECRETARY', 'STATIONMASTER','ORG_PRINCIPAL'],
-  6: 'PARTY_SECRETARY',
+  6: ['PARTY_SECRETARY','STATIONMASTER'],
   99: 'ORG_PRINCIPAL'
 }
 
@@ -43,3 +44,29 @@ export const leaveScopeMap = {
 export const SpecialLeaveTypes = ['年休假', '病假', '事假', '丧假', '搬家假']
 
 export const leaderList = ['DEPUTY_STATIONMASTER', 'STATIONMASTER', 'PARTY_SECRETARY'];
+
+export const actionMap = {
+  'APPROVE': '同意',
+  'REJECT': '驳回',
+  'RETURN': '退回',
+  'SUBMITTED': '提交',
+}
+
+export const STATUS_MAP = {
+  DRAFT: { text: '草稿', color: 'default' },
+  SUBMITTED: { text: '已提交', color: 'processing' },
+  DIRECTOR_APPROVED: { text: '主任已审批', color: 'blue' },
+  RETURNED: { text: '已退回', color: 'error' },
+  APPROVED: { text: '已通过', color: 'success' },
+  REJECTED: { text: '已拒绝', color: 'error' },
+};
+
+export const DEFAULT_CONFIG = {
+  teamLeaderColor: '#FFFFCC',
+  learnerColor: '#CCFFCC',
+  newEmployeeColor: '#FFCCCC',
+  showTeamLeaderColor: true,
+  showLearnerColor: true,
+  showNewEmployeeColor: true,
+  showAge: true,
+};
