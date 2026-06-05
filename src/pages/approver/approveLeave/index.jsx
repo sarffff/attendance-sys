@@ -60,6 +60,7 @@ const Approval = () => {
   const { data: orgData } = useFetch(() =>
     orgListApi({ pageNum: 1, pageSize: 999 }),
   );
+
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectMode, setRejectMode] = useState('single');
   const [filters, setFilters] = useState({

@@ -84,6 +84,7 @@ export function updateConfig(data) {
   })
 }
 
+//获取我的台账列表
 export function getMyLedger(month) {
   return request({
     url: '/ledger/my',
@@ -92,6 +93,7 @@ export function getMyLedger(month) {
   })
 }
 
+//保存台账详情
 export function saveLedgerDetails(id, data) {
   return request({
     url: `/ledger/${id}/details`,
@@ -118,11 +120,11 @@ export function submitLedger(id) {
 }
 
 //获取待审核的台账
-export function getPendingLedgers(status) {
+export function getPendingLedgers(params) {
   return request({
     url: '/ledger/pending',
     method: 'get',
-    params: { status }
+    params
   })
 }
 
@@ -152,15 +154,6 @@ export function getLedgerDetail(id) {
   })
 }
 
-//导出台账PDF
-export function exportLedgerPdf(id) {
-  return request({
-    url: `/ledger/${id}/pdf`,
-    method: 'get',
-    responseType: 'blob'
-  })
-}
-
 //导出台账Excel
 export function exportLedgerExcel(id) {
   return request({
@@ -178,9 +171,36 @@ export function compareLedger(id) {
   })
 }
 
+//获取台账配置
 export function getConfig() {
   return request({
     url: '/ledger/config',
     method: 'get'
+  })
+}
+
+//提交现员表到人事科
+export function submitBasic() {
+  return request({
+    url: 'ledger/basic/submit',
+    method: 'post',
+  })
+}
+
+//导出按班别分列的现员分布台账Excel
+export function exportLedgerExcelByClass(id) {
+  return request({
+    url: `/ledger/${id}/distribution-excel`,
+    method: 'get',
+    responseType: 'blob'
+  })
+}
+
+//各部门现员表提交状态
+export function getSubmitStatus(params) {
+  return request({
+    url: '/ledger/basic/submissions',
+    method: 'get',
+    params
   })
 }

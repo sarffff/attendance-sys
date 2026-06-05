@@ -2,7 +2,8 @@ const sign = {
   isConnectWS: false,
   shouldReconnect: true,
   websocket: null,
-  wsUrl: 'ws://127.0.0.1:29999/',
+  wsUrls: ['ws://127.0.0.1:29999/', 'ws://localhost:29999/'],
+  currentUrlIndex: 0,
   getOSParams: {
     HWPenSign: 'HWGetOS',
   },
@@ -82,10 +83,11 @@ const sign = {
     }
 
     let ws;
+    const currentUrl = sign.wsUrls[sign.currentUrlIndex];
     if ('WebSocket' in window) {
-      ws = new WebSocket(sign.wsUrl);
+      ws = new WebSocket(currentUrl);
     } else if ('MozWebSocket' in window) {
-      ws = new MozWebSocket(sign.wsUrl);
+      ws = new MozWebSocket(currentUrl);
     } else {
       window.alert('浏览器不支持WebSocket');
       return;
@@ -95,9 +97,13 @@ const sign = {
     ws.binaryType = 'arraybuffer';
 
     ws.onopen = function () {
-      if (sign.websocket !== ws) return;
-      console.log('链接签名服务成功，URL: ', sign.wsUrl);
+      if (sign.websocket !== ws) {
+        console.log('onopen ignored: websocket mismatch', { signWs: sign.websocket, ws });
+        return;
+      }
+      console.log('链接签名服务成功，URL: ', currentUrl);
       sign.isConnectWS = true;
+      sign.currentUrlIndex = 0; // 成功后重置回第一个URL
       sign.connectCallback?.(true);
     };
 
@@ -107,15 +113,19 @@ const sign = {
     };
 
     ws.onclose = function (evt) {
-      if (sign.websocket !== ws && sign.websocket !== null) return;
+      if (sign.websocket !== ws && sign.websocket !== null) {
+        console.log('onclose ignored: websocket mismatch', { signWs: sign.websocket, ws, wasNull: sign.websocket === null });
+        return;
+      }
 
-      console.log('链接关闭', evt);
+      console.log('链接关闭', evt, 'code:', evt.code, 'reason:', evt.reason);
       sign.isConnectWS = false;
 
       if (sign.websocket === ws) {
         sign.websocket = null;
       }
 
+      console.log('calling connectCallback with false');
       sign.connectCallback?.(false);
 
       if (sign.shouldReconnect) {
@@ -129,7 +139,14 @@ const sign = {
 
     ws.onerror = function (evt) {
       if (sign.websocket !== ws) return;
-      console.log('链接报错', evt);
+      console.log('WebSocket错误', evt, 'URL:', currentUrl);
+      // 尝试下一个URL
+      sign.currentUrlIndex = (sign.currentUrlIndex + 1) % sign.wsUrls.length;
+      // 调用connectCallback通知连接失败
+      if (sign.websocket === ws) {
+        sign.isConnectWS = false;
+        sign.connectCallback?.(false);
+      }
     };
   },
   sendMsg: function (param) {
@@ -140,7 +157,7 @@ const sign = {
     }
 
     console.log('发送信息', param);
-    if (param !== 'string') {
+    if (typeof param !== 'string') {
       ws.send(JSON.stringify(param));
     } else {
       ws.send(param);

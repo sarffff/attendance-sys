@@ -1,17 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-  Card,
-  Table,
-  Button,
-  Tag,
-  Select,
-  Space,
-  Modal,
-  Input,
-  message,
-  Empty,
-  Spin,
-} from 'antd';
+import { useState, useMemo } from 'react';
+import { Card, Button, Tag, Select, Space, Modal, Input, message } from 'antd';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -19,8 +7,8 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { getPendingLedgers, hrReviewLedger } from '@/api/ledger';
-import { useAppSelector } from '@/hooks/useAppSelector';
 import { useNavigate } from 'react-router-dom';
+import BaseTable from '@/components/BaseTable';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -30,66 +18,20 @@ const STATUS_MAP = {
   DIRECTOR_APPROVED: { text: '主任已审批', color: 'blue' },
   RETURNED: { text: '已驳回', color: 'error' },
   APPROVED: { text: '已通过', color: 'success' },
-  REJECTED: { text: '已驳回', color: 'error' },
+  REJECTED: { text: '已拒绝', color: 'error' },
 };
 
-const ROLE_DEFAULT_STATUS = {
-  ATTENDANCE_ADMIN: null,
-  PARTY_SECRETARY: null,
-  STATIONMASTER: null,
-  DEPUTY_STATIONMASTER: null,
-  HR_SECTION_CHIEF: null,
-};
+const STATUS_OPTIONS = [
+  { label: '全部', value: '' },
+  { label: '主任已审批', value: 'DIRECTOR_APPROVED' },
+  { label: '已通过', value: 'APPROVED' },
+  { label: '已拒绝', value: 'REJECTED' },
+];
 
-const ROLE_STATUS_OPTIONS = {
-  ATTENDANCE_ADMIN: [
-    { label: '全部', value: null },
-    { label: '主任已审批', value: 'DIRECTOR_APPROVED' },
-    { label: '已通过', value: 'APPROVED' },
-    { label: '已驳回', value: 'REJECTED' },
-  ],
-  PARTY_SECRETARY: [
-    { label: '全部', value: null },
-    { label: '待审批', value: 'DIRECTOR_APPROVED' },
-    { label: '已通过', value: 'APPROVED' },
-    { label: '已驳回', value: 'REJECTED' },
-  ],
-  STATIONMASTER: [
-    { label: '全部', value: null },
-    { label: '待审批', value: 'DIRECTOR_APPROVED' },
-    { label: '已通过', value: 'APPROVED' },
-    { label: '已驳回', value: 'REJECTED' },
-  ],
-  DEPUTY_STATIONMASTER: [
-    { label: '全部', value: null },
-    { label: '待审批', value: 'DIRECTOR_APPROVED' },
-    { label: '已通过', value: 'APPROVED' },
-    { label: '已驳回', value: 'REJECTED' },
-  ],
-  HR_SECTION_CHIEF: [
-    { label: '全部', value: null },
-    { label: '待审批', value: 'DIRECTOR_APPROVED' },
-    { label: '已通过', value: 'APPROVED' },
-    { label: '已驳回', value: 'REJECTED' },
-  ],
-};
-
-/** 当前节点可进行审批/驳回的状态 */
 const REVIEWABLE_STATUS = ['DIRECTOR_APPROVED'];
 
 const styles = {
-  toolbar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  toolbarLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-  },
+  cardExtra: { display: 'flex', alignItems: 'center', gap: 8 },
   approveBtn: {
     color: '#fff',
     background: 'linear-gradient(135deg, #52c41a, #389e0d)',
@@ -117,45 +59,22 @@ const styles = {
 };
 
 const AllLedger = () => {
-  const user = useAppSelector((state) => state.user.userInfo);
-  const roleCode = user?.roleCode;
   const navigate = useNavigate();
 
-  const [status, setStatus] = useState(ROLE_DEFAULT_STATUS[roleCode] || null);
-  const [list, setList] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState('');
   const [isRefresh, setIsRefresh] = useState(false);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [modalAction, setModalAction] = useState(null);
   const [modalRecord, setModalRecord] = useState(null);
   const [opinion, setOpinion] = useState('');
   const [confirmLoading, setConfirmLoading] = useState(false);
 
-  const statusOptions = ROLE_STATUS_OPTIONS[roleCode] || [
-    { label: '全部', value: null },
-    { label: '待审批', value: 'DIRECTOR_APPROVED' },
-    { label: '已通过', value: 'APPROVED' },
-    { label: '已驳回', value: 'REJECTED' },
-  ];
-
-  const canReview = roleCode !== 'ATTENDANCE_ADMIN';
-
-  const loadList = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getPendingLedgers(status);
-      setList(Array.isArray(data) ? data : []);
-    } catch {
-      message.error('加载列表失败');
-      setList([]);
-    } finally {
-      setLoading(false);
-    }
+  const params = useMemo(() => {
+    const p = {};
+    if (status) p.status = status;
+    return p;
   }, [status]);
-
-  useEffect(() => {
-    loadList();
-  }, [loadList, isRefresh]);
 
   const openModal = (record, action) => {
     setModalRecord(record);
@@ -172,10 +91,7 @@ const AllLedger = () => {
         action: modalAction,
         opinion: opinion || '',
       });
-
-      message.success(
-        modalAction === 'APPROVE' ? '审批通过' : '已驳回，考勤管理员可重新编辑提交',
-      );
+      message.success(modalAction === 'APPROVE' ? '审批通过' : '已驳回');
       setModalOpen(false);
       setIsRefresh((prev) => !prev);
     } catch (err) {
@@ -185,29 +101,17 @@ const AllLedger = () => {
     }
   };
 
-  const handleViewDetail = (record) => {
-    navigate(`/hr-ledger-detail?id=${record.id}`);
-  };
-
   const columns = useMemo(
     () => [
-      {
-        title: '车间',
-        dataIndex: 'orgUnitName',
-        width: 150,
-      },
-      {
-        title: '台账月份',
-        dataIndex: 'ledgerMonth',
-        width: 110,
-      },
+      { title: '车间', dataIndex: 'orgUnitName', width: 150 },
+      { title: '台账月份', dataIndex: 'ledgerMonth', width: 110 },
       {
         title: '状态',
         dataIndex: 'status',
         width: 120,
-        render: (status) => {
-          const s = STATUS_MAP[status];
-          return <Tag color={s?.color}>{s?.text || status}</Tag>;
+        render: (v) => {
+          const s = STATUS_MAP[v];
+          return <Tag color={s?.color}>{s?.text || v}</Tag>;
         },
       },
       {
@@ -216,117 +120,90 @@ const AllLedger = () => {
         width: 90,
         align: 'center',
       },
-      {
-        title: '创建人',
-        dataIndex: 'creatorName',
-        width: 150,
-      },
+      { title: '创建人', dataIndex: 'creatorName', width: 150 },
       {
         title: '提交时间',
         dataIndex: 'submittedAt',
         width: 170,
-        render: (v) => (v ? dayjs(v).format('YYYY-MM-DD HH:mm') : ''),
+        render: (v) => (v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-'),
       },
       {
         title: '更新时间',
         dataIndex: 'updatedAt',
         width: 170,
-        render: (v) => (v ? dayjs(v).format('YYYY-MM-DD HH:mm') : ''),
+        render: (v) => (v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-'),
       },
       {
         title: '操作',
         fixed: 'right',
         width: 260,
-        render: (_, record) => {
-          const reviewable =
-            canReview && REVIEWABLE_STATUS.includes(record.status);
-
-          return (
-            <Space size={8}>
-              <Button
-                size="small"
-                icon={<EyeOutlined />}
-                style={styles.detailBtn}
-                onClick={() => handleViewDetail(record)}
-              >
-                详情
-              </Button>
-
-              {reviewable && (
-                <>
-                  <Button
-                    size="small"
-                    icon={<CheckCircleOutlined />}
-                    style={styles.approveBtn}
-                    onClick={() => openModal(record, 'APPROVE')}
-                  >
-                    审批
-                  </Button>
-
-                  <Button
-                    size="small"
-                    icon={<CloseCircleOutlined />}
-                    style={styles.rejectBtn}
-                    onClick={() => openModal(record, 'REJECT')}
-                  >
-                    驳回
-                  </Button>
-                </>
-              )}
-            </Space>
-          );
-        },
+        render: (_, record) => (
+          <Space size={8}>
+            <Button
+              size="small"
+              icon={<EyeOutlined />}
+              style={styles.detailBtn}
+              onClick={() => navigate(`/hr-ledger-detail?id=${record.id}`)}
+            >
+              详情
+            </Button>
+            {REVIEWABLE_STATUS.includes(record.status) && (
+              <>
+                <Button
+                  size="small"
+                  icon={<CheckCircleOutlined />}
+                  style={styles.approveBtn}
+                  onClick={() => openModal(record, 'APPROVE')}
+                >
+                  通过
+                </Button>
+                <Button
+                  size="small"
+                  icon={<CloseCircleOutlined />}
+                  style={styles.rejectBtn}
+                  onClick={() => openModal(record, 'REJECT')}
+                >
+                  驳回
+                </Button>
+              </>
+            )}
+          </Space>
+        ),
       },
     ],
-    [canReview, navigate],
+    [navigate],
   );
-
-  const modalTitle =
-    modalAction === 'APPROVE' ? '审批通过' : '驳回台账';
-
-  const modalAlert =
-    modalAction === 'REJECT'
-      ? '驳回后，台账将退回考勤管理员重新编辑并再次提交'
-      : modalAction === 'APPROVE'
-        ? '确认通过后，台账将进入下一审批环节或完成审批'
-        : '';
 
   return (
     <Card
       title="台账审核"
       extra={
-        <div style={styles.toolbar}>
-          <div style={styles.toolbarLeft}>
-            <Select
-              value={status}
-              onChange={setStatus}
-              options={statusOptions}
-              style={{ width: 150 }}
-            />
-            <Button icon={<ReloadOutlined />} onClick={loadList}>
-              刷新
-            </Button>
-          </div>
+        <div style={styles.cardExtra}>
+          <Select
+            value={status}
+            onChange={setStatus}
+            options={STATUS_OPTIONS}
+            style={{ width: 140 }}
+          />
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => setIsRefresh((p) => !p)}
+          >
+            刷新
+          </Button>
         </div>
       }
     >
-      <Spin spinning={loading}>
-        {list.length === 0 && !loading ? (
-          <Empty description="暂无待处理台账" style={{ padding: '60px 0' }} />
-        ) : (
-          <Table
-            columns={columns}
-            dataSource={list}
-            rowKey="id"
-            scroll={{ x: 'max-content' }}
-            size="middle"
-            pagination={false}
-          />
-        )}
-      </Spin>
+      <BaseTable
+        columns={columns}
+        request={getPendingLedgers}
+        params={params}
+        rowKey="id"
+        isRefresh={isRefresh}
+      />
 
       <Modal
-        title={modalTitle}
+        title={modalAction === 'APPROVE' ? '审批通过' : '驳回台账'}
         open={modalOpen}
         onOk={handleConfirm}
         onCancel={() => setModalOpen(false)}
@@ -336,7 +213,7 @@ const AllLedger = () => {
         destroyOnHidden
         width={480}
       >
-        {modalAlert && (
+        {modalAction && (
           <div
             style={{
               background: modalAction === 'REJECT' ? '#fff7e6' : '#f6ffed',
@@ -348,10 +225,11 @@ const AllLedger = () => {
               color: '#666',
             }}
           >
-            {modalAlert}
+            {modalAction === 'REJECT'
+              ? '驳回后，台账将退回考勤管理员重新编辑并再次提交'
+              : '确认通过后，台账将进入下一审批环节或完成审批'}
           </div>
         )}
-
         {modalRecord && (
           <div style={{ marginBottom: 16, color: '#333' }}>
             <div>
@@ -368,7 +246,6 @@ const AllLedger = () => {
             </div>
           </div>
         )}
-
         <div>
           <div style={{ marginBottom: 8, fontWeight: 500 }}>
             {modalAction === 'REJECT' ? '驳回原因' : '审批意见'}（选填）
@@ -378,9 +255,7 @@ const AllLedger = () => {
             value={opinion}
             onChange={(e) => setOpinion(e.target.value)}
             placeholder={
-              modalAction === 'REJECT'
-                ? '请输入驳回原因'
-                : '请输入审批意见'
+              modalAction === 'REJECT' ? '请输入驳回原因' : '请输入审批意见'
             }
           />
         </div>

@@ -197,10 +197,24 @@ const HRLedgerDetail = () => {
     }
   };
 
+  const hasCommonChar = (str1, str2) => {
+    for (const char of str1) {
+        if (str2.includes(char)) {
+            return true;
+        }
+    }
+    return false;
+}
+
   const columns = useMemo(() => {
 
-    const renderShiftName = (record, shiftName) =>
-      record.shiftType === shiftName ? record.empName : '';
+     const renderShiftName = (record, keyword) => {
+      if(hasCommonChar(record.teamName, keyword)) {
+        return (
+          <span>{record.empName || ''}</span>
+        );
+      }
+    }
 
     return [
       {

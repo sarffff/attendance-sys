@@ -53,8 +53,41 @@ export function useHanwangSign(enabled = true) {
     };
   }, []);
 
+  const waitForConnection = useCallback((timeout = 5000) => {
+    return new Promise((resolve) => {
+      if (connected) {
+        resolve(true);
+        return;
+      }
+      const startTime = Date.now();
+      const checkConnection = () => {
+        if (connected || sign.isConnectWS) {
+          resolve(true);
+          return true;
+        }
+        return false;
+      };
+      if (checkConnection()) return;
+      const interval = setInterval(() => {
+        if (checkConnection()) {
+          clearInterval(interval);
+          return;
+        }
+        if (Date.now() - startTime >= timeout) {
+          clearInterval(interval);
+          resolve(false);
+        }
+      }, 100);
+    });
+  }, [connected]);
+
   const startSign = useCallback(async () => {
-    if (!connected) throw new Error('未连接签名服务，请确认汉王本地服务已启动');
+    if (!connected) {
+      const connectedOk = await waitForConnection(5000);
+      if (!connectedOk) {
+        throw new Error('未连接签名服务，请确认汉王本地服务已启动');
+      }
+    }
     if (!deviceReadyRef.current) await checkDevice();
 
     setPreview('');
@@ -92,14 +125,14 @@ export function useHanwangSign(enabled = true) {
         1, // showDialog
       );
     });
-  }, [connected, checkDevice, calcWindowSize]);
+  }, [connected, checkDevice, calcWindowSize, waitForConnection]);
 
   const reset = useCallback(() => {
     setPreview('');
     setSigning(false);
     if (signingRef.current && sign.isConnectWS) {
       signingRef.current = false;
-      sign.endSign(() => {});
+      sign.endSign(() => { });
     }
   }, []);
 

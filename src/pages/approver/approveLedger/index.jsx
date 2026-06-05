@@ -26,10 +26,12 @@ const { TextArea } = Input;
 
 const STATUS_MAP = {
   SUBMITTED: { text: '已提交', color: 'processing' },
+  DIRECTOR_APPROVED: { text: '主任已审批', color: 'success' },
   RETURNED: { text: '已驳回', color: 'error' },
 };
 
 const STATUS_OPTIONS = [
+  { label: '全部', value: '' },
   { label: '已提交', value: 'SUBMITTED' },
   { label: '已驳回', value: 'RETURNED' },
 ];
@@ -65,7 +67,7 @@ const styles = {
 const ApproveLedger = () => {
   const navigate = useNavigate();
 
-  const [status, setStatus] = useState('SUBMITTED');
+  const [status, setStatus] = useState('');
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isRefresh, setIsRefresh] = useState(false);
@@ -79,8 +81,8 @@ const ApproveLedger = () => {
   const loadList = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getPendingLedgers(status);
-      setList(Array.isArray(data) ? data : []);
+      const data = await getPendingLedgers({status});
+      setList(Array.isArray(data.records) ? data.records : []);
     } catch {
       message.error('加载列表失败');
       setList([]);
@@ -176,7 +178,7 @@ const ApproveLedger = () => {
               size="small"
               icon={<EyeOutlined />}
               style={styles.detailBtn}
-              onClick={() => navigate(`/ledger-detail?id=${record.id}`)}
+              onClick={() => navigate(`/hr-ledger-detail?id=${record.id}`)}
             >
               详情
             </Button>

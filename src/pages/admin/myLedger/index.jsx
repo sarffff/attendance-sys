@@ -5,8 +5,6 @@ import {
   Button,
   Tag,
   Input,
-  InputNumber,
-  Select,
   DatePicker,
   Descriptions,
   message,
@@ -18,8 +16,6 @@ import {
 import {
   SaveOutlined,
   SendOutlined,
-  HolderOutlined,
-  ReloadOutlined,
 } from '@ant-design/icons';
 import {
   getMyLedger,
@@ -72,6 +68,9 @@ const MyLedger = () => {
     () => ledger && ['DRAFT', 'RETURNED'].includes(ledger.status),
     [ledger],
   );
+
+  const TEAM_KEYWORDS = ['甲班', '乙班', '丙班', '丁班', '预备', '日勤'];
+
 
   const loadConfig = useCallback(async () => {
     try {
@@ -173,12 +172,14 @@ const MyLedger = () => {
     return {};
   };
 
-  const updateCell = (index, field, value) => {
+  const updateCell = (record, field, value) => {
     setDetails((prev) => {
+      const idx = prev.findIndex((d) => d.id === record.id);
+      if (idx === -1) return prev;
       const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
+      next[idx] = { ...next[idx], [field]: value };
       if (field === 'isNonWorking' && value === 0) {
-        next[index].nonWorkingReason = '';
+        next[idx].nonWorkingReason = '';
       }
       return next;
     });
@@ -228,22 +229,36 @@ const MyLedger = () => {
     }
   };
 
+  const hasCommonChar = (str1, str2) => {
+    for (const char of str1) {
+        if (str2.includes(char)) {
+            return true;
+        }
+    }
+    return false;
+}
+
   const columns = useMemo(() => {
-    const renderEditableText = (field, value, index, placeholder) =>
+    const renderEditableText = (field, value, record, placeholder) =>
       editable ? (
         <Input
           size="small"
           value={value || ''}
           placeholder={placeholder}
-          onChange={(e) => updateCell(index, field, e.target.value)}
+          onChange={(e) => updateCell(record, field, e.target.value)}
           style={styles.cellInput}
         />
       ) : (
         value || ''
       );
 
-    const renderShiftName = (record, shiftName) =>
-      record.shiftType === shiftName ? record.empName : '';
+    const renderShiftName = (record, keyword) => {
+      if(hasCommonChar(record.teamName, keyword)) {
+        return (
+          <span>{record.empName || ''}</span>
+        );
+      }
+    }
 
     return [
       {
@@ -251,38 +266,34 @@ const MyLedger = () => {
         dataIndex: 'stationPoint',
         width: 120,
         align: 'center',
-        render: (value, _, index) =>
-          renderEditableText('stationPoint', value, index, '岗点'),
+        render: (value, record) =>
+          renderEditableText('stationPoint', value, record, '岗点'),
       },
       {
         title: '班组',
         dataIndex: 'teamName',
         width: 140,
         align: 'center',
-        render: (value, _, index) =>
-          renderEditableText('teamName', value, index, '班组'),
       },
       {
         title: '岗位',
         dataIndex: 'workType',
         width: 140,
         align: 'center',
-        render: (value, _, index) =>
-          renderEditableText('workType', value, index, '岗位'),
       },
       {
         title: '班别',
         align: 'center',
-        children: ['甲班', '乙班', '丙班', '丁班', '预备'].map((shiftName) => ({
-          title: shiftName,
+        children: TEAM_KEYWORDS.map((t,index) => ({
+          title: TEAM_KEYWORDS[index],
           align: 'center',
           children: [
             {
               title: '姓名',
-              dataIndex: `${shiftName}Name`,
+              dataIndex: 'empName',
               width: 110,
               align: 'center',
-              render: (_, record) => renderShiftName(record, shiftName),
+              render: (_, record) => renderShiftName(record, t),
             },
           ],
         })),
@@ -299,7 +310,7 @@ const MyLedger = () => {
         children: [
           {
             title: '姓名',
-            dataIndex: 'dayShiftName',
+            dataIndex: 'empName',
             width: 110,
             align: 'center',
             render: (_, record) => renderShiftName(record, '日勤'),

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Button,
   Card,
@@ -10,31 +11,27 @@ import {
   Typography,
   message,
 } from 'antd';
-import { ReloadOutlined, SaveOutlined, TeamOutlined, UploadOutlined } from '@ant-design/icons';
-import { getEmployeeBasic, updateEmployeeBasic, syncBasic } from '@/api/ledger';
+import {
+  ReloadOutlined,
+  SaveOutlined,
+  TeamOutlined,
+  UploadOutlined,
+  SendOutlined,
+} from '@ant-design/icons';
+import { getEmployeeBasic, updateEmployeeBasic, syncBasic, submitBasic, getConfig } from '@/api/ledger';
+import { useFetch } from '@/hooks/useFetch';
+import { useAppSelector } from '@/hooks/useAppSelector';
+import { getTeamNameApi } from '@/api/super_admin';
+import { workType, LaborShifts } from '@/constants/constantsMap';
 
 const { Title, Text } = Typography;
-
-const SHIFT_OPTIONS = [
-  '白班',
-  '夜班',
-  '两班倒',
-  '四班间歇',
-  '四班制',
-  '三班制',
-  '日勤',
-  '其他',
-];
-
-const isTruthy = (value) => Number(value) === 1 || value === true;
-
 const isNonWorkingEmployee = (item) =>
   Number(item.isNonWorking) === 1 ||
   Number(item.isWorking) === 0 ||
-  item.workStatus === '非在岗' ||
-  item.workState === '非在岗' ||
-  item.categoryMajor === '非在岗' ||
-  item.categoryMinor === '非在岗';
+  item.workStatus === '非在岗职工' ||
+  item.workState === '非在岗职工' ||
+  item.categoryMajor === '非在岗职工' ||
+  item.categoryMinor === '非在岗职工';
 
 const calcAge = (birthDate) => {
   if (!birthDate) return undefined;
@@ -51,22 +48,44 @@ const calcAge = (birthDate) => {
 };
 
 const AdminEmployeeBasic = () => {
+  const [searchParams] = useSearchParams();
+  const user = useAppSelector((state) => state.user.userInfo);
+  const orgUnitId = searchParams.get('orgUnitId') || null;
+  const readOnly = !!orgUnitId;
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState(null);
+  const [total, setTotal] = useState(0);
+  const [pageNum, setPageNum] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { data: teamNameList } = useFetch(() =>
+    getTeamNameApi({orgUnitId: user.orgUnitId}),
+  );
+
+  const { data: config } = useFetch(getConfig);
+
+  const TEAM_OPTIONS = useMemo(
+    () =>
+      teamNameList?.records.map((team) => ({
+        label: team.teamName,
+        value: team.teamName,
+      })) || [],
+    [teamNameList],
+  )
 
   const loadList = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getEmployeeBasic({ pageNum: 1, pageSize: 9999 });
+      const data = await getEmployeeBasic({ pageNum, pageSize, orgUnitId });
       setList(Array.isArray(data?.records) ? data.records : []);
+      setTotal(data.total);
     } catch (err) {
       message.error(err?.message || '加载现员基础表失败');
       setList([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [pageNum, pageSize, orgUnitId]);
 
   useEffect(() => {
     loadList();
@@ -86,7 +105,7 @@ const AdminEmployeeBasic = () => {
         workType: record.workType || '',
         teamName: record.teamName || '',
         laborShift: record.laborShift || '',
-        isTeamLeader: isTruthy(record.isTeamLeader) ? 1 : 0,
+        isTeamLeader: record.isTeamLeader || '否',
       });
       message.success('保存成功');
       await loadList();
@@ -108,6 +127,20 @@ const AdminEmployeeBasic = () => {
     }
   };
 
+  const [submitting, setSubmitting] = useState(false);
+
+  const submitToHR = async () => {
+    setSubmitting(true);
+    try {
+      await submitBasic();
+      message.success('提交到人事科成功');
+    } catch (err) {
+      message.error(err?.message || '提交失败');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const nonWorkingList = useMemo(
     () =>
       list
@@ -124,11 +157,12 @@ const AdminEmployeeBasic = () => {
   const ageSixtyList = useMemo(
     () =>
       list
-        .filter((item) => Number(item.age ?? calcAge(item.birthDate)) === 60)
+        .filter((item) => Number(item.age) >= 60)
         .map((item) => ({
           id: item.id,
           empName: item.empName,
           birthDate: item.birthDate,
+          workType: item.workType,
         })),
     [list],
   );
@@ -137,86 +171,100 @@ const AdminEmployeeBasic = () => {
     { title: 'ID', dataIndex: 'id', width: 90 },
     { title: '身份证号', dataIndex: 'idCardNo', width: 180 },
     { title: '姓名', dataIndex: 'empName', width: 100 },
+    {
+      title: '年龄', dataIndex: 'age', width: 80, align: 'center',
+      hidden: !config?.show_age,
+     },
     { title: '性别', dataIndex: 'gender', width: 80 },
     { title: '出生日期', dataIndex: 'birthDate', width: 120 },
     { title: '身份', dataIndex: 'identityType', width: 120 },
     { title: '科室车间名称', dataIndex: 'orgUnitName', width: 160 },
     { title: '人员类别大类', dataIndex: 'categoryMajor', width: 140 },
     { title: '人员类别小类', dataIndex: 'categoryMinor', width: 140 },
-    { title: '年龄', dataIndex: 'age', width: 80, align: 'center' },
     {
       title: '工种',
       dataIndex: 'workType',
       width: 140,
-      render: (value, record) => (
-        <Input
-          size="small"
-          value={value || ''}
-          onChange={(e) => updateCell(record.id, 'workType', e.target.value)}
-        />
-      ),
+    },
+    {
+      title: '实际工种',
+      dataIndex: 'workType',
+      width: 140,
+      render: readOnly
+        ? (value) => value || '-'
+        : (value, record) => (
+            <Select
+              options={workType.map((item) => ({ label: item, value: item }))}
+              value={value || undefined}
+              style={{ width: '100%' }}
+              placeholder="请选择"
+              onChange={(nextValue) => updateCell(record.id, 'workType', nextValue)}
+            />
+          ),
     },
     {
       title: '班制',
       dataIndex: 'laborShift',
       width: 140,
-      render: (value, record) => (
-        <Select
-          size="small"
-          value={value || undefined}
-          style={{ width: '100%' }}
-          placeholder="请选择"
-          options={SHIFT_OPTIONS.map((item) => ({ label: item, value: item }))}
-          onChange={(nextValue) =>
-            updateCell(record.id, 'laborShift', nextValue)
-          }
-        />
-      ),
+      render: readOnly
+        ? (value) => value || '-'
+        : (value, record) => (
+            <Select
+              size="small"
+              value={value || undefined}
+              style={{ width: '100%' }}
+              placeholder="请选择"
+              options={LaborShifts.map((item) => ({ label: item, value: item }))}
+              onChange={(nextValue) =>
+                updateCell(record.id, 'laborShift', nextValue)
+              }
+            />
+          ),
     },
     {
       title: '是否班组长',
       dataIndex: 'isTeamLeader',
       width: 110,
       align: 'center',
-      render: (value, record) => (
-        <Switch
-          checked={isTruthy(value)}
-          checkedChildren="是"
-          unCheckedChildren="否"
-          onChange={(checked) =>
-            updateCell(record.id, 'isTeamLeader', checked ? 1 : 0)
-          }
-        />
-      ),
+      render: (value) => <Text>{value}</Text>,
     },
     {
       title: '班组名称',
       dataIndex: 'teamName',
       width: 160,
-      render: (value, record) => (
-        <Input
-          size="small"
-          value={value || ''}
-          onChange={(e) => updateCell(record.id, 'teamName', e.target.value)}
-        />
-      ),
+      render: readOnly
+        ? (value) => value || '-'
+        : (value, record) => (
+            <Select
+              size="small"
+              value={value || undefined}
+              style={{ width: '100%' }}
+              placeholder="请选择"
+              options={TEAM_OPTIONS}
+              onChange={(nextValue) => updateCell(record.id, 'teamName', nextValue)}
+            />
+          ),
     },
-    {
-      title: '操作',
-      width: 100,
-      fixed: 'right',
-      render: (_, record) => (
-        <Button
-          type="primary"
-          size="small"
-          icon={<SaveOutlined />}
-          loading={savingId === record.id}
-          onClick={() => handleSave(record)}
-        >
-          保存
-        </Button>
-      ),
-    },
+    ...(!readOnly
+      ? [
+          {
+            title: '操作',
+            width: 100,
+            fixed: 'right',
+            render: (_, record) => (
+              <Button
+                type="primary"
+                size="small"
+                icon={<SaveOutlined />}
+                loading={savingId === record.id}
+                onClick={() => handleSave(record)}
+              >
+                保存
+              </Button>
+            ),
+          },
+        ]
+      : []),
   ];
 
   const nonWorkingColumns = [
@@ -228,6 +276,7 @@ const AdminEmployeeBasic = () => {
   const ageSixtyColumns = [
     { title: '姓名', dataIndex: 'empName', width: 120 },
     { title: '出生日期', dataIndex: 'birthDate', width: 140 },
+    { title: '工种', dataIndex: 'workType', width: 140 },
   ];
 
   return (
@@ -290,9 +339,25 @@ const AdminEmployeeBasic = () => {
           }}
         >
           <Space wrap>
-            <Button type="primary" icon={<UploadOutlined />} onClick={syncToLedger}>
-              同步到台账
-            </Button>
+            {!readOnly && (
+              <>
+                <Button
+                  type="primary"
+                  icon={<SendOutlined />}
+                  loading={submitting}
+                  onClick={submitToHR}
+                >
+                  提交到人事科
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<UploadOutlined />}
+                  onClick={syncToLedger}
+                >
+                  同步到台账
+                </Button>
+              </>
+            )}
             <Button icon={<ReloadOutlined />} onClick={loadList}>
               刷新
             </Button>
@@ -306,10 +371,17 @@ const AdminEmployeeBasic = () => {
           loading={loading}
           scroll={{ x: 'max-content' }}
           pagination={{
+            current: pageNum,
+            pageSize: pageSize,
+            total,
             showQuickJumper: true,
             showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50'],
+            pageSizeOptions: ['5', '10', '20', '50'],
             showTotal: (total) => `共 ${total} 条`,
+            onChange: (page, pageSize) => {
+              setPageNum(page);
+              setPageSize(pageSize);
+            },
           }}
         />
       </Card>
@@ -321,7 +393,7 @@ const AdminEmployeeBasic = () => {
           gap: 16,
         }}
       >
-        <Card title="非在岗人员" bordered={false}>
+        <Card title="非在岗人员">
           <Table
             rowKey="id"
             size="small"
@@ -330,7 +402,7 @@ const AdminEmployeeBasic = () => {
             pagination={false}
           />
         </Card>
-        <Card title="年龄60岁人员" bordered={false}>
+        <Card title="年龄60岁人员">
           <Table
             rowKey="id"
             size="small"

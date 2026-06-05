@@ -6,7 +6,8 @@ import {
     UserAddOutlined,
     GroupOutlined,
     DeploymentUnitOutlined,
-    SnippetsOutlined
+    SnippetsOutlined,
+    TeamOutlined
 } from '@ant-design/icons';
 
 import {
@@ -29,12 +30,12 @@ const MyLedger = lazy(() => import('@/pages/admin/myLedger'));
 const AdminEmployeeBasic = lazy(() => import('@/pages/admin/employee_basic'));
 const ApproveLedger = lazy(() => import('@/pages/approver/approveLedger'));
 const AllLedger = lazy(() => import('@/pages/super_admin/allLedger'));
-const BasicLedger = lazy(() => import('@/pages/super_admin/basicLedger'));
 const ConfigLedger = lazy(() => import('@/pages/super_admin/configLedger'));
 const EmployeeBasic = lazy(() => import('@/pages/super_admin/employee_basic'));
 const HRLedgerDetail = lazy(() => import('@/pages/hrLedgerDetail'));
 const HrAllLedger = lazy(() => import('@/pages/admin/allLedger'));
 const AllEmployeeBasic = lazy(() => import('@/pages/admin/all_employee_basic'));
+const TeamSettings = lazy(() => import('@/pages/super_admin/team_settings'));
 
 
 const withSuspense = (Component) => {
@@ -129,6 +130,13 @@ export const menuConfig = [
         element: withSuspense(LeavesSettings),
     },
     {
+        key: '/team-settings',
+        icon: TeamOutlined,
+        label: '班组管理',
+        roles: superRoleList,
+        element: withSuspense(TeamSettings),
+    },
+    {
         key: '/all-ledger',
         icon: CalendarOutlined,
         label: '所有台账',
@@ -141,13 +149,6 @@ export const menuConfig = [
         label: '现员表信息',
         roles: superRoleList,
         element: withSuspense(EmployeeBasic),
-    },
-    {
-        key: '/basic-ledger',
-        icon: CalendarOutlined,
-        label: '基础台账',
-        roles: superRoleList,
-        element: withSuspense(BasicLedger),
     },
     {
         key: '/config-ledger',

@@ -137,3 +137,12 @@ export const leacesUploadSignatureApi = (leaveId, formData) => {
     data: formData
   })
 }
+
+//班组长上传签字日期
+export const leacesUploadDateApi = (leaveId, data) => {
+  return request({
+    url: `/leaves/${leaveId}/team-leader-signature-date`,
+    method: 'POST',
+    data
+  })
+}

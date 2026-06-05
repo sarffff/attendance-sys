@@ -140,7 +140,7 @@ const LeaveDetailModal = ({ open, onCancel, data, extra = null }) => {
 
                 {step.approvedAt && (
                   <div style={{ color: '#999' }}>
-                    时间：{formatTime(step.approvedAt)}
+                    审批时间：{formatTime(step.approvedAt)}
                   </div>
                 )}
 

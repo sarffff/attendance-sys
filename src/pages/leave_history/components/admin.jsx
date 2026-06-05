@@ -25,6 +25,7 @@ import {
   leacesPrintApi,
   leacesBatchPrintApi,
   leacesUploadSignatureApi,
+  leacesUploadDateApi,
   leacesListThreeMonthApi
 } from '@/api/leaves';
 import { useFetch } from '@/hooks/useFetch';
@@ -66,7 +67,7 @@ const AdminHistory = () => {
       label: value,
       value: key,
     }));
-  });
+  }, []);
 
   const formSchema = useMemo(
     () => [
@@ -169,7 +170,7 @@ const AdminHistory = () => {
         span: 24,
       },
     ],
-    [data, hasEditId],
+    [data, applicantTypeOptions],
   );
 
   const columns = [
@@ -243,16 +244,6 @@ const AdminHistory = () => {
     const formData = new FormData();
     formData.append('signatureFile', file);
     formData.append('applicantType', applicantType);
-    if (applicantType === 'TEAM_LEADER') {
-      if (!signatureDate) {
-        message.warning('未选择签名日期，将使用当前日期作为签名日期');
-      } else {
-        formData.append(
-          'signatureDate',
-          dayjs(signatureDate).format('YYYY-MM-DDT00:00:00'),
-        );
-      }
-    }
 
     if (applicantType === 'APPLICANT') {
       setUploadingLeaveIdApplicant(record.id);
@@ -618,6 +609,9 @@ const AdminHistory = () => {
         .format('YYYY-MM-DD HH:mm:ss')
         .replace(' ', 'T'),
       endTime: values.endTime.format('YYYY-MM-DD HH:mm:ss').replace(' ', 'T'),
+      submittedAt: values.submittedAt
+        ? values.submittedAt.format('YYYY-MM-DD HH:mm:ss').replace(' ', 'T')
+        : values.submittedAt,
     };
 
     // console.log('申请数据', data);
@@ -858,13 +852,21 @@ const AdminHistory = () => {
       <Modal
         title="选择签名日期"
         open={signatureDateOpen}
-        onOk={() => {
+        onOk={async () => {
           if (!signatureDate) {
             message.warning('请选择签名日期');
             return;
           }
-          setSignatureDateOpen(false);
-          message.success('签名日期已设置');
+          try {
+            await leacesUploadDateApi(signatureRecord.id, {
+              signatureDate: dayjs(signatureDate).format('YYYY-MM-DD'),
+            });
+            message.success('签名日期上传成功');
+            setSignatureDateOpen(false);
+            setIsRefresh((prev) => !prev);
+          } catch (err) {
+            message.error(err?.message || '上传失败');
+          }
         }}
         onCancel={() => setSignatureDateOpen(false)}
         okText="确认"

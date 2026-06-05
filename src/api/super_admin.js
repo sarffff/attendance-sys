@@ -160,3 +160,38 @@ export const leaveApproveTimeEditApi = (leaveId, data) => {
     data
   });
 }
+
+//获取班组名称
+export const getTeamNameApi = (params) => {
+  return request({
+    url: '/admin/team-names/page',
+    method: 'GET',
+    params
+  });
+}
+
+//新增班组名称
+export const addTeamNameApi = (data) => {
+  return request({
+    url: '/admin/team-names',
+    method: 'POST',
+    data
+  });
+}
+
+//编辑班组名称
+export const editTeamNameApi = (teamNameId, data) => {
+  return request({
+    url: `/admin/team-names/${teamNameId}`,
+    method: 'PUT',
+    data
+  });
+}
+
+//删除班组名称
+export const deleteTeamNameApi = (teamNameId) => {
+  return request({
+    url: `/admin/team-names/${teamNameId}`,
+    method: 'DELETE'
+  });
+}
