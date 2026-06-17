@@ -29,16 +29,18 @@ import {
 import dayjs from 'dayjs';
 import { useAppSelector } from '@/store/hooks';
 import { useNavigate } from 'react-router-dom';
-import { actionMap, STATUS_MAP, DEFAULT_CONFIG } from '@/constants/constantsMap';
+import {
+  actionMap,
+  STATUS_MAP,
+  DEFAULT_CONFIG,
+} from '@/constants/constantsMap';
 import { formatTime } from '@/utils/formatTime';
-
 
 const COMPARE_TYPE_MAP = {
   CHANGED: { text: '变更', color: 'blue' },
   ADDED: { text: '新增', color: 'green' },
   REMOVED: { text: '减少', color: 'red' },
 };
-
 
 const styles = {
   page: { display: 'flex', flexDirection: 'column', gap: 16 },
@@ -68,7 +70,7 @@ const styles = {
   emptyWrap: { padding: '80px 0', textAlign: 'center' },
 };
 
-const detailRoles = ['ATTENDANCE_ADMIN', 'HR_SECTION_CHIEF']
+const detailRoles = ['ATTENDANCE_ADMIN', 'HR_SECTION_CHIEF'];
 
 const HRLedgerDetail = () => {
   const user = useAppSelector((state) => state.user.userInfo);
@@ -124,7 +126,6 @@ const HRLedgerDetail = () => {
   useEffect(() => {
     loadLedger();
   }, [loadLedger]);
-
 
   const rowClassName = (record) => {
     if (record.isTeamLeader === 1 && cfg.showTeamLeaderColor)
@@ -200,24 +201,19 @@ const HRLedgerDetail = () => {
     }
   };
 
-  const hasCommonChar = (str1, str2) => {
-    for (const char of str1) {
-        if (str2.includes(char)) {
-            return true;
-        }
-    }
-    return false;
-}
+  // const hasCommonChar = (str1, str2) => {
+  //   for (const char of str1) {
+  //     if (str2.includes(char)) {
+  //       return true;
+  //     }
+  //   }
+  //   return false;
+  // };
 
   const columns = useMemo(() => {
-
-     const renderShiftName = (record, keyword) => {
-      if(hasCommonChar(record.teamName, keyword)) {
-        return (
-          <span>{record.empName || ''}</span>
-        );
-      }
-    }
+    const renderShiftName = (record, keyword) => {
+     return <span>{record[keyword] || '-'}</span>;
+    };
 
     return [
       {
@@ -225,7 +221,6 @@ const HRLedgerDetail = () => {
         dataIndex: 'stationPoint',
         width: 120,
         align: 'center',
-
       },
       {
         title: '班组',
@@ -324,10 +319,7 @@ const HRLedgerDetail = () => {
         <div style={styles.page}>
           <div style={styles.exportBar}>
             <Space>
-              <Button
-                icon={<ArrowLeftOutlined />}
-                onClick={() => navigate(-1)}
-              >
+              <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
                 返回
               </Button>
             </Space>
@@ -501,14 +493,14 @@ const HRLedgerDetail = () => {
                           style={{ marginLeft: 8 }}
                         >
                           {record.step === 'DIRECTOR' ? '主任审批' : '人事审核'}
-                          {actionMap[record.action] ? ` - ${actionMap[record.action]}` : ''}
+                          {actionMap[record.action]
+                            ? ` - ${actionMap[record.action]}`
+                            : ''}
                         </Tag>
                         <span
                           style={{ color: '#999', marginLeft: 8, fontSize: 12 }}
                         >
-                          {record.createdAt
-                            ? formatTime(record.createdAt)
-                            : ''}
+                          {record.createdAt ? formatTime(record.createdAt) : ''}
                         </span>
                       </div>
                       {record.opinion && (
