@@ -234,6 +234,7 @@ const AllLedger = () => {
         rowSelection={{
           selectedRowKeys,
           onChange: setSelectedRowKeys,
+          preserveSelectedRowKeys: true,
         }}
       />
 

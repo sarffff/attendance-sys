@@ -124,6 +124,7 @@ const AllEmployeeBasic = () => {
         rowSelection={{
           selectedRowKeys,
           onChange: setSelectedRowKeys,
+          preserveSelectedRowKeys: true,
         }}
       />
     </Card>
