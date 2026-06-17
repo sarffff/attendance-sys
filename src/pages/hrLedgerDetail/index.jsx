@@ -210,11 +210,17 @@ const HRLedgerDetail = () => {
   //   return false;
   // };
 
-  const columns = useMemo(() => {
-    const renderShiftName = (record, keyword) => {
-     return <span>{record[keyword] || '-'}</span>;
-    };
+  const TEAM_KEYWORDS = ['甲班', '乙班', '丙班', '丁班', '预备'];
 
+  const SHIFT_FIELDS = {
+    甲班: ['jiaBan1', 'jiaBan2'],
+    乙班: ['yiBan1', 'yiBan2'],
+    丙班: ['bingBan1', 'bingBan2'],
+    丁班: ['dingBan1', 'dingBan2'],
+    预备: ['yuBei1', 'yuBei2'],
+  };
+
+  const columns = useMemo(() => {
     return [
       {
         title: '岗点',
@@ -237,23 +243,25 @@ const HRLedgerDetail = () => {
       {
         title: '班别',
         align: 'center',
-        children: ['甲班', '乙班', '丙班', '丁班', '预备'].map((shiftName) => ({
-          title: shiftName,
+        children: TEAM_KEYWORDS.map((t) => ({
+          title: t,
           align: 'center',
           children: [
             {
               title: '姓名',
-              dataIndex: `${shiftName}Name`,
-              width: 110,
-              align: 'center',
-              render: (_, record) => renderShiftName(record, shiftName),
+              children: SHIFT_FIELDS[t].map((field) => ({
+                width: 100,
+                align: 'center',
+                dataIndex: field,
+                render: (value) => value || '',
+              })),
             },
           ],
         })),
       },
       {
         title: '班制',
-        dataIndex: 'shiftType',
+        dataIndex: 'shiftCategory',
         width: 120,
         align: 'center',
       },
@@ -263,10 +271,10 @@ const HRLedgerDetail = () => {
         children: [
           {
             title: '姓名',
-            dataIndex: 'dayShiftName',
+            dataIndex: 'dailyName',
             width: 110,
             align: 'center',
-            render: (_, record) => renderShiftName(record, '日勤'),
+            render: (value) => value || '',
           },
         ],
       },

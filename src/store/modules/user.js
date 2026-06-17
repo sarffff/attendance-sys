@@ -21,6 +21,7 @@ const userSlice = createSlice({
       state.token = ''
       state.userInfo = {}
       localStorage.removeItem('attendance-token')
+      sessionStorage.removeItem('attendance_sys_myLedger')
     }
   }
 })
