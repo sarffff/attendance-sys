@@ -1,6 +1,6 @@
 import AdminHistory from './components/admin';
 import ApproverHistory from './components/approver';
-import { useAppSelector } from '@/hooks/useAppSelector';
+import { useAppSelector } from '@/store/hooks';
 const LeaveHistory = () => {
   const user = useAppSelector((state) => state.user.userInfo);
   return (

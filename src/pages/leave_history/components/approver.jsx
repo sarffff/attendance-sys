@@ -28,7 +28,7 @@ import {
   leacesListThreeMonthApi
 } from '@/api/leaves';
 import { orgListApi } from '@/api/super_admin';
-import { useAppSelector } from '@/hooks/useAppSelector';
+import { useAppSelector } from '@/store/hooks';
 import {
   leave_step,
   leaveStatusMap as map,

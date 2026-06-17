@@ -63,6 +63,12 @@ const ConfigLedger = () => {
         sample: 'true/false',
         type: 'boolean',
       },
+      {
+        configKey: 'retirement_age_threshold',
+        desc: '即将退休年龄阈值',
+        sample: '60',
+        type: 'text',
+      },
     ],
     [],
   );
@@ -99,12 +105,12 @@ const ConfigLedger = () => {
     setSavingKey(record.configKey);
     console.log('Saving config', record.configKey, value);
     try {
-      // await updateConfig([
-      //   {
-      //     configKey: record.configKey,
-      //     configValue: value,
-      //   },
-      // ]);
+      await updateConfig([
+        {
+          configKey: record.configKey,
+          configValue: value,
+        },
+      ]);
       message.success('配置保存成功');
     } catch {
       message.error('配置保存失败');
@@ -122,6 +128,18 @@ const ConfigLedger = () => {
           style={{ margin: 0 }}
         >
           <Switch checkedChildren="是" unCheckedChildren="否" />
+        </Form.Item>
+      );
+    }
+
+    if (record.type === 'text') {
+      return (
+        <Form.Item
+          name={record.configKey}
+          style={{ margin: 0 }}
+          rules={[{ required: true, message: '请输入配置值' }]}
+        >
+          <Input placeholder={record.sample} />
         </Form.Item>
       );
     }

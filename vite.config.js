@@ -31,24 +31,34 @@ export default defineConfig(({ mode }) => {
         : undefined,
     },
 
-    // build: {
-    //   minify: 'terser',
-    //   sourcemap: false,
-    //   chunkSizeWarningLimit: 1500,
-    //   terserOptions: {
-    //     compress: {
-    //       drop_console: true,
-    //       drop_debugger: true,
-    //     },
-    //   },
-    //   rollupOptions: {
-    //     output: {
-    //       manualChunks: {
-    //         react: ['react', 'react-dom', 'react-router-dom'],
-    //         vendor: ['axios'],
-    //       },
-    //     },
-    //   },
-    // }
+    build: {
+      minify: 'terser',
+      sourcemap: false,
+      chunkSizeWarningLimit: 1500,
+      terserOptions: {
+        compress: {
+          drop_console: true,
+          drop_debugger: true,
+          pure_funcs: ['console.error'],
+        },
+      },
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+                return 'react-vendor';
+              }
+              if (id.includes('antd') || id.includes('@ant-design')) {
+                return 'antd-vendor';
+              }
+              if (id.includes('axios') || id.includes('@reduxjs') || id.includes('react-redux') || id.includes('dayjs')) {
+                return 'vendor';
+              }
+            }
+          },
+        },
+      },
+    }
   }
 })

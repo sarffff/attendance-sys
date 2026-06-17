@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { message } from "antd";
-
 /**
  * @param {Function} handler 异步请求函数
  * @param {Array} deps 触发请求更新的依赖项，默认为空数组（仅挂载时执行）
@@ -15,21 +14,21 @@ export function useFetch(handler, deps = []) {
   });
 
   useEffect(() => {
-    let isMounted = true;
+    let cancelled = false;
     const fetchData = async () => {
       try {
         setLoading(true);
         const res = await handlerRef.current();
 
-        if (isMounted && res) {
+        if (!cancelled && res) {
           setData(res.data || res);
         }
       } catch (error) {
-        if (isMounted) {
+        if (!cancelled) {
           message.error(error.message || "请求失败");
         }
       } finally {
-        if (isMounted) {
+        if (!cancelled) {
           setLoading(false);
         }
       }
@@ -38,7 +37,7 @@ export function useFetch(handler, deps = []) {
     fetchData();
 
     return () => {
-      isMounted = false;
+      cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);

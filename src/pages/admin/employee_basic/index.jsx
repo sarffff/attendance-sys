@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Button,
   Card,
@@ -10,6 +10,7 @@ import {
   Table,
   Typography,
   message,
+  DatePicker
 } from 'antd';
 import {
   ReloadOutlined,
@@ -17,49 +18,40 @@ import {
   TeamOutlined,
   UploadOutlined,
   SendOutlined,
+  ArrowLeftOutlined,
+  FileExcelOutlined,
 } from '@ant-design/icons';
-import { getEmployeeBasic, updateEmployeeBasic, syncBasic, submitBasic, getConfig } from '@/api/ledger';
+import {
+  getEmployeeBasic,
+  updateEmployeeBasic,
+  submitBasic,
+  getConfig,
+  exportBasic
+} from '@/api/ledger';
 import { useFetch } from '@/hooks/useFetch';
-import { useAppSelector } from '@/hooks/useAppSelector';
+import { useAppSelector } from '@/store/hooks';
 import { getTeamNameApi } from '@/api/super_admin';
 import { workType, LaborShifts } from '@/constants/constantsMap';
+import BaseTable from '@/components/BaseTable';
+import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
-const isNonWorkingEmployee = (item) =>
-  Number(item.isNonWorking) === 1 ||
-  Number(item.isWorking) === 0 ||
-  item.workStatus === '非在岗职工' ||
-  item.workState === '非在岗职工' ||
-  item.categoryMajor === '非在岗职工' ||
-  item.categoryMinor === '非在岗职工';
-
-const calcAge = (birthDate) => {
-  if (!birthDate) return undefined;
-  const birth = new Date(birthDate);
-  if (Number.isNaN(birth.getTime())) return undefined;
-
-  const now = new Date();
-  let age = now.getFullYear() - birth.getFullYear();
-  const monthDiff = now.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
-    age -= 1;
-  }
-  return age;
-};
 
 const AdminEmployeeBasic = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const user = useAppSelector((state) => state.user.userInfo);
   const orgUnitId = searchParams.get('orgUnitId') || null;
   const readOnly = !!orgUnitId;
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [savingId, setSavingId] = useState(null);
   const [total, setTotal] = useState(0);
   const [pageNum, setPageNum] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const { data: teamNameList } = useFetch(() =>
-    getTeamNameApi({orgUnitId: user.orgUnitId}),
+    getTeamNameApi({ orgUnitId: user.orgUnitId }),
   );
 
   const { data: config } = useFetch(getConfig);
@@ -71,7 +63,7 @@ const AdminEmployeeBasic = () => {
         value: team.teamName,
       })) || [],
     [teamNameList],
-  )
+  );
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -102,10 +94,12 @@ const AdminEmployeeBasic = () => {
     try {
       await updateEmployeeBasic({
         id: record.id,
-        workType: record.workType || '',
+        actualWorkType: record.actualWorkType || '',
         teamName: record.teamName || '',
         laborShift: record.laborShift || '',
         isTeamLeader: record.isTeamLeader || '否',
+        workType: record.workType || '',
+        retirementDate: record.retirementDate || '',
       });
       message.success('保存成功');
       await loadList();
@@ -116,18 +110,25 @@ const AdminEmployeeBasic = () => {
     }
   };
 
-  const syncToLedger = async () => {
-    message.warning('请确认已保存所有修改，否则未保存的数据将无法同步到台账');
-    const month = new Date().toISOString().slice(0, 7); // 当前年月，格式为 YYYY-MM
+  const handleExport = async (params, filename) => {
     try {
-      await syncBasic(month);
-      message.success('同步到台账成功');
-    } catch (err) {
-      message.error(err?.message || '同步到台账失败');
+      message.loading('正在生成Excel...', 0);
+      const blob = await exportBasic(orgUnitId || user.orgUnitId, params);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      message.destroy();
+      message.success('Excel下载成功');
+    } catch {
+      message.destroy();
+      message.error('导出失败');
     }
   };
-
-  const [submitting, setSubmitting] = useState(false);
 
   const submitToHR = async () => {
     setSubmitting(true);
@@ -141,40 +142,17 @@ const AdminEmployeeBasic = () => {
     }
   };
 
-  const nonWorkingList = useMemo(
-    () =>
-      list
-        .filter((item) => isNonWorkingEmployee(item))
-        .map((item) => ({
-          id: item.id,
-          empName: item.empName,
-          age: item.age ?? calcAge(item.birthDate),
-          remark: item.nonWorkingReason || item.remark || '',
-        })),
-    [list],
-  );
-
-  const ageSixtyList = useMemo(
-    () =>
-      list
-        .filter((item) => Number(item.age) >= 60)
-        .map((item) => ({
-          id: item.id,
-          empName: item.empName,
-          birthDate: item.birthDate,
-          workType: item.workType,
-        })),
-    [list],
-  );
-
   const columns = [
     { title: 'ID', dataIndex: 'id', width: 90 },
     { title: '身份证号', dataIndex: 'idCardNo', width: 180 },
     { title: '姓名', dataIndex: 'empName', width: 100 },
     {
-      title: '年龄', dataIndex: 'age', width: 80, align: 'center',
+      title: '年龄',
+      dataIndex: 'age',
+      width: 80,
+      align: 'center',
       hidden: !config?.show_age,
-     },
+    },
     { title: '性别', dataIndex: 'gender', width: 80 },
     { title: '出生日期', dataIndex: 'birthDate', width: 120 },
     { title: '身份', dataIndex: 'identityType', width: 120 },
@@ -188,7 +166,7 @@ const AdminEmployeeBasic = () => {
     },
     {
       title: '实际工种',
-      dataIndex: 'workType',
+      dataIndex: 'actualWorkType',
       width: 140,
       render: readOnly
         ? (value) => value || '-'
@@ -198,7 +176,9 @@ const AdminEmployeeBasic = () => {
               value={value || undefined}
               style={{ width: '100%' }}
               placeholder="请选择"
-              onChange={(nextValue) => updateCell(record.id, 'workType', nextValue)}
+              onChange={(nextValue) =>
+                updateCell(record.id, 'actualWorkType', nextValue)
+              }
             />
           ),
     },
@@ -214,7 +194,10 @@ const AdminEmployeeBasic = () => {
               value={value || undefined}
               style={{ width: '100%' }}
               placeholder="请选择"
-              options={LaborShifts.map((item) => ({ label: item, value: item }))}
+              options={LaborShifts.map((item) => ({
+                label: item,
+                value: item,
+              }))}
               onChange={(nextValue) =>
                 updateCell(record.id, 'laborShift', nextValue)
               }
@@ -241,7 +224,9 @@ const AdminEmployeeBasic = () => {
               style={{ width: '100%' }}
               placeholder="请选择"
               options={TEAM_OPTIONS}
-              onChange={(nextValue) => updateCell(record.id, 'teamName', nextValue)}
+              onChange={(nextValue) =>
+                updateCell(record.id, 'teamName', nextValue)
+              }
             />
           ),
     },
@@ -268,19 +253,81 @@ const AdminEmployeeBasic = () => {
   ];
 
   const nonWorkingColumns = [
-    { title: '姓名', dataIndex: 'empName', width: 120 },
-    { title: '年龄', dataIndex: 'age', width: 80, align: 'center' },
-    { title: '备注', dataIndex: 'remark' },
+    {
+      title: '车间', dataIndex: 'orgUnitName', width: 120,
+      hidden: !readOnly,
+     },
+    { title: '班组', dataIndex: 'teamName', width: 120 },
+    { title: '姓名', dataIndex: 'empName', width: 100 },
+    { title: '性别', dataIndex: 'gender', width: 70 },
+    { title: '出生日期', dataIndex: 'birthDate', width: 120 },
+    { title: '年龄', dataIndex: 'age', width: 70, align: 'center' },
+    { title: '工种', dataIndex: 'workType', width: 120 },
+    { title: '非在岗原因', dataIndex: 'categoryMinor', width: 160 },
   ];
 
-  const ageSixtyColumns = [
-    { title: '姓名', dataIndex: 'empName', width: 120 },
-    { title: '出生日期', dataIndex: 'birthDate', width: 140 },
-    { title: '工种', dataIndex: 'workType', width: 140 },
+  const [retiringSavingId, setRetiringSavingId] = useState(null);
+  const handleSaveRetiring = async (record) => {
+    setRetiringSavingId(record.id);
+    try {
+      await updateEmployeeBasic({
+       ...record,
+      });
+      message.success('保存成功');
+      await loadList();
+    } catch (err) {
+      message.error(err?.message || '保存失败');
+    } finally {
+      setRetiringSavingId(null);
+    }
+  };
+
+  const retiringColumns = [
+    { title: '车间', dataIndex: 'orgUnitName', width: 120, hidden: !readOnly },
+    { title: '班组', dataIndex: 'teamName', width: 120 },
+    { title: '姓名', dataIndex: 'empName', width: 100 },
+    { title: '性别', dataIndex: 'gender', width: 70 },
+    { title: '身份证号', dataIndex: 'idCardNo', width: 180 },
+    { title: '出生日期', dataIndex: 'birthDate', width: 120 },
+    { title: '年龄', dataIndex: 'age', width: 70, align: 'center' },
+    { title: '工种', dataIndex: 'workType', width: 120 },
+    {
+      title: '退休日期',
+      dataIndex: 'retirementDate',
+      width: 140,
+      render: (value, record) => (
+       !readOnly ?  <DatePicker
+          value={value ? dayjs(value) : null}
+          picker="month"
+          style={{ width: '100%' }}
+          onChange={(date) =>
+            updateCell(record.id, 'retirementDate', date ? date.format('YYYY-MM') : '')
+          }
+        /> : value || '-'
+      ),
+    },
+    {
+      hidden: readOnly,
+      title: '操作',
+      width: 80,
+      fixed: 'right',
+      render: (_, record) => (
+        <Button
+          type="primary"
+          size="small"
+          icon={<SaveOutlined />}
+          loading={retiringSavingId === record.id}
+          onClick={() => handleSaveRetiring(record)}
+        >
+          保存
+        </Button>
+      ),
+    },
   ];
 
   return (
     <div
+      className="admin-employee-basic"
       style={{
         padding: 24,
         // minHeight: '100vh',
@@ -295,6 +342,14 @@ const AdminEmployeeBasic = () => {
           gap: 10,
         }}
       >
+        {readOnly && (
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/all-employee-basic')}
+          >
+            返回
+          </Button>
+        )}
         <div
           style={{
             width: 36,
@@ -349,13 +404,6 @@ const AdminEmployeeBasic = () => {
                 >
                   提交到人事科
                 </Button>
-                <Button
-                  type="primary"
-                  icon={<UploadOutlined />}
-                  onClick={syncToLedger}
-                >
-                  同步到台账
-                </Button>
               </>
             )}
             <Button icon={<ReloadOutlined />} onClick={loadList}>
@@ -388,39 +436,75 @@ const AdminEmployeeBasic = () => {
 
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          display: 'flex',
+          flexDirection: 'column',
           gap: 16,
         }}
       >
-        <Card title="非在岗人员">
-          <Table
+        <Card
+          title="非在岗人员"
+          extra={
+            readOnly && (
+              <Button
+                icon={<FileExcelOutlined />}
+                style={{ color: '#52c41a', borderColor: '#52c41a' }}
+                onClick={() =>
+                  handleExport(
+                    { categoryMajor: '非在岗', ...(orgUnitId ? { orgUnitId } : {}) },
+                    `非在岗人员_${dayjs().format('YYYY-MM-DD')}.xlsx`,
+                  )
+                }
+              >
+                导出Excel
+              </Button>
+            )
+          }
+        >
+          <BaseTable
+            columns={nonWorkingColumns}
+            request={getEmployeeBasic}
+            params={{ categoryMajor: '非在岗', ...(readOnly && orgUnitId ? { orgUnitId } : {}) }}
             rowKey="id"
             size="small"
-            columns={nonWorkingColumns}
-            dataSource={nonWorkingList}
-            pagination={false}
           />
         </Card>
-        <Card title="年龄60岁人员">
-          <Table
+        <Card
+          title="即将退休的人员"
+          extra={
+            readOnly && (
+              <Button
+                icon={<FileExcelOutlined />}
+                style={{ color: '#52c41a', borderColor: '#52c41a' }}
+                onClick={() =>
+                  handleExport(
+                    { retirementAge: config?.retirement_age_threshold, ...(orgUnitId ? { orgUnitId } : {}) },
+                    `即将退休人员_${dayjs().format('YYYY-MM-DD')}.xlsx`,
+                  )
+                }
+              >
+                导出Excel
+              </Button>
+            )
+          }
+        >
+          <BaseTable
+            columns={retiringColumns}
+            request={getEmployeeBasic}
+            params={{ retirementAge: config?.retirement_age_threshold, ...(readOnly && orgUnitId ? { orgUnitId } : {}) }}
             rowKey="id"
             size="small"
-            columns={ageSixtyColumns}
-            dataSource={ageSixtyList}
-            pagination={false}
           />
         </Card>
       </div>
 
       <style>{`
-        .ant-table-thead > tr > th {
+        .admin-employee-basic .ant-table-thead > tr > th {
           background: #f0f5ff !important;
           font-weight: 600 !important;
           color: #2c3e50 !important;
           font-size: 13px !important;
         }
-        .ant-table-row:hover td { background: #f0f7ff !important; }
+        .admin-employee-basic .ant-table-row:hover td { background: #f0f7ff !important; }
       `}</style>
     </div>
   );

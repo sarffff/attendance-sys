@@ -165,9 +165,9 @@ export const menuConfig = [
         element: withSuspense(HRLedgerDetail),
     },
     {
-        key: '/all-ledger',
+        key: '/hr-all-ledger',
         icon: CalendarOutlined,
-        label: '所有台账',
+        label: '现员分布台账',
         roles: AllLedgerRoleList,
         element: withSuspense(HrAllLedger),
         isAll: true,
@@ -175,7 +175,7 @@ export const menuConfig = [
     {
         key: '/all-employee-basic',
         icon: CalendarOutlined,
-        label: '所有现员表',
+        label: '所有现员基础台账',
         roles: AllLedgerRoleList,
         element: withSuspense(AllEmployeeBasic),
         isAll: true,

@@ -1,5 +1,5 @@
 import { superRoleList } from "../../constants/roleCode";
-import { useAppSelector } from "@/hooks/useAppSelector";
+import { useAppSelector } from '@/store/hooks';
 import SuperAdmin from "./components/superAdmin";
 import OtherRole from "./components/otherRole";
 const Dashboard = () => {

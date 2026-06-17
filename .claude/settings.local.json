@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Read(//c/Users/Administrator/Desktop/**)",
-      "Bash(dir /b)"
+      "Bash(dir /b)",
+      "Bash(npx vite *)",
+      "Bash(npx eslint *)"
     ]
   }
 }

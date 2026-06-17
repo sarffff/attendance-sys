@@ -28,7 +28,7 @@ import {
   countLeaveTypeApi,
 } from '@/api/login';
 import { formatTime } from '@/utils/formatTime';
-import { useAppSelector } from '@/hooks/useAppSelector';
+import { useAppSelector } from '@/store/hooks';
 
 const { Paragraph, Title, Text } = Typography;
 

@@ -12,21 +12,24 @@ import {
   Timeline,
   Empty,
   Spin,
+  Select,
 } from 'antd';
+import { SaveOutlined, SendOutlined, DeleteOutlined } from '@ant-design/icons';
 import {
-  SaveOutlined,
-  SendOutlined,
-} from '@ant-design/icons';
-import {
-  getMyLedger,
-  saveLedgerDetails,
   submitLedger,
   getConfig,
 } from '@/api/ledger';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { addDetail, updateDetail, removeDetail, setRemark } from '@/store/modules/myLedger';
 import dayjs from 'dayjs';
-import { actionMap, STATUS_MAP, DEFAULT_CONFIG } from '@/constants/constantsMap';
+import {
+  actionMap,
+  STATUS_MAP,
+  DEFAULT_CONFIG,
+  workType,
+  LaborShifts
+} from '@/constants/constantsMap';
 import { formatTime } from '@/utils/formatTime';
-
 
 const styles = {
   page: { display: 'flex', flexDirection: 'column', gap: 16 },
@@ -48,29 +51,36 @@ const styles = {
   dragHandle: { cursor: 'grab', color: '#999', fontSize: 16 },
   cellInput: { width: '100%' },
   emptyWrap: { padding: '80px 0', textAlign: 'center' },
+  cellSelect: { width: '100%', textAlign: 'left' },
 };
 
-
 const MyLedger = () => {
-  const [month, setMonth] = useState(dayjs().format('YYYY-MM'));
-  const [ledger, setLedger] = useState(null);
-  const [details, setDetails] = useState([]);
-  const [formInWorkCount, setFormInWorkCount] = useState(0);
-  const [formRemark, setFormRemark] = useState('');
+  const currentMonth = dayjs().format('YYYY-MM');
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.user.userInfo);
+  const ledger = useAppSelector((state) => state.myLedger);
+  const details = useAppSelector((state) => state.myLedger.details);
+  const formRemark = useAppSelector((state) => state.myLedger.remark);
 
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const loading = false;
   const [submitting, setSubmitting] = useState(false);
 
   const [cfg, setCfg] = useState(DEFAULT_CONFIG);
+
+  const TEAM_KEYWORDS = ['甲班', '乙班', '丙班', '丁班', '预备'];
+
+  const SHIFT_FIELDS = {
+    甲班: ['jiaBan1', 'jiaBan2'],
+    乙班: ['yiBan1', 'yiBan2'],
+    丙班: ['bingBan1', 'bingBan2'],
+    丁班: ['dingBan1', 'dingBan2'],
+    预备: ['yuBei1', 'yuBei2'],
+  };
 
   const editable = useMemo(
     () => ledger && ['DRAFT', 'RETURNED'].includes(ledger.status),
     [ledger],
   );
-
-  const TEAM_KEYWORDS = ['甲班', '乙班', '丙班', '丁班', '预备', '日勤'];
-
 
   const loadConfig = useCallback(async () => {
     try {
@@ -93,47 +103,9 @@ const MyLedger = () => {
     }
   }, []);
 
-  const loadLedger = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getMyLedger(month);
-      if (data) {
-        setLedger(data);
-        setFormInWorkCount(data.inWorkCount || 0);
-        setFormRemark(data.remark || '');
-
-        const all = [
-          ...(data.details || []),
-          ...(data.nonWorkingDetails || []),
-        ].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-
-        setDetails(
-          all.map((item, idx) => ({
-            ...item,
-            sortOrder: item.sortOrder ?? idx + 1,
-          })),
-        );
-      } else {
-        setLedger(null);
-        setDetails([]);
-        setFormInWorkCount(0);
-        setFormRemark('');
-      }
-    } catch {
-      message.error('加载台账失败');
-      setLedger(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [month]);
-
   useEffect(() => {
     loadConfig();
   }, [loadConfig]);
-
-  useEffect(() => {
-    loadLedger();
-  }, [loadLedger]);
 
   const rowClassName = (record) => {
     if (record.isTeamLeader === 1 && cfg.showTeamLeaderColor)
@@ -173,55 +145,21 @@ const MyLedger = () => {
   };
 
   const updateCell = (record, field, value) => {
-    setDetails((prev) => {
-      const idx = prev.findIndex((d) => d.id === record.id);
-      if (idx === -1) return prev;
-      const next = [...prev];
-      next[idx] = { ...next[idx], [field]: value };
-      if (field === 'isNonWorking' && value === 0) {
-        next[idx].nonWorkingReason = '';
-      }
-      return next;
-    });
+    dispatch(updateDetail({ id: record.id, field, value }))
   };
 
-  const handleSave = async () => {
-    if (!ledger || !editable) return;
-    setSaving(true);
-    try {
-      const payload = {
-        inWorkCount: formInWorkCount,
-        remark: formRemark,
-        details: details.map((d) => ({
-          id: d.id,
-          stationPoint: d.stationPoint || '',
-          teamName: d.teamName || '',
-          workType: d.workType || '',
-          sortNo: d.sortNo,
-        })),
-      };
-      await saveLedgerDetails(ledger.id, payload);
-      message.success('保存成功');
-      await loadLedger();
-    } catch (err) {
-      message.error(err?.message || '保存失败');
-    } finally {
-      setSaving(false);
-    }
+  const handleAddRow = () => {
+    dispatch(addDetail())
   };
+
 
   const handleSubmit = async () => {
     if (!ledger || !editable) return;
-    try {
-      await handleSave();
-    } catch {
-      return;
-    }
+
     setSubmitting(true);
     try {
-      await submitLedger(ledger.id);
+      await submitLedger({ details, remark: formRemark });
       message.success('提交成功，等待审批');
-      await loadLedger();
     } catch (err) {
       message.error(err?.message || '提交失败');
     } finally {
@@ -229,14 +167,14 @@ const MyLedger = () => {
     }
   };
 
-  const hasCommonChar = (str1, str2) => {
-    for (const char of str1) {
-        if (str2.includes(char)) {
-            return true;
-        }
-    }
-    return false;
-}
+  // const hasCommonChar = (str1, str2) => {
+  //   for (const char of str1) {
+  //     if (str2.includes(char)) {
+  //       return true;
+  //     }
+  //   }
+  //   return false;
+  // };
 
   const columns = useMemo(() => {
     const renderEditableText = (field, value, record, placeholder) =>
@@ -252,14 +190,6 @@ const MyLedger = () => {
         value || ''
       );
 
-    const renderShiftName = (record, keyword) => {
-      if(hasCommonChar(record.teamName, keyword)) {
-        return (
-          <span>{record.empName || ''}</span>
-        );
-      }
-    }
-
     return [
       {
         title: '岗点',
@@ -267,42 +197,74 @@ const MyLedger = () => {
         width: 120,
         align: 'center',
         render: (value, record) =>
-          renderEditableText('stationPoint', value, record, '岗点'),
+          renderEditableText('stationPoint', value, record, '请输入岗点'),
       },
       {
         title: '班组',
         dataIndex: 'teamName',
         width: 140,
         align: 'center',
+        render: (value, record) =>
+          renderEditableText('teamName', value, record, '请输入班组'),
       },
       {
         title: '岗位',
         dataIndex: 'workType',
         width: 140,
         align: 'center',
+        render: (value, record) =>
+            editable ? (
+            <Select
+              size="small"
+              value={value || undefined}
+              options={workType.map((wt) => ({ label: wt, value: wt }))}
+              onChange={(v) => updateCell(record, 'workType', v)}
+              style={styles.cellSelect}
+              placeholder="请选择岗位"
+            />
+
+          ) : (
+            value || ''
+          ),
       },
       {
         title: '班别',
         align: 'center',
-        children: TEAM_KEYWORDS.map((t,index) => ({
-          title: TEAM_KEYWORDS[index],
+        children: TEAM_KEYWORDS.map((t) => ({
+          title: t,
           align: 'center',
           children: [
             {
               title: '姓名',
-              dataIndex: 'empName',
-              width: 110,
-              align: 'center',
-              render: (_, record) => renderShiftName(record, t),
+              children: SHIFT_FIELDS[t].map((field) => ({
+                width: 100,
+                align: 'center',
+                dataIndex: field,
+                render: (value, record) =>
+                  renderEditableText(field, value, record, '请输入姓名'),
+              })),
             },
           ],
         })),
       },
       {
         title: '班制',
-        dataIndex: 'shiftType',
-        width: 120,
+        dataIndex: 'shiftCategory',
+        width: 140,
         align: 'center',
+        render: (value, record) =>
+          editable ? (
+            <Select
+              size="small"
+              value={value || undefined}
+              options={LaborShifts.map((item) => ({ label: item, value: item }))}
+              onChange={(v) => updateCell(record, 'shiftCategory', v)}
+              style={styles.cellSelect}
+              placeholder="请选择班制"
+            />
+          ) : (
+            value || ''
+          ),
       },
       {
         title: '日勤',
@@ -310,10 +272,11 @@ const MyLedger = () => {
         children: [
           {
             title: '姓名',
-            dataIndex: 'empName',
+            dataIndex: 'dailyName',
             width: 110,
             align: 'center',
-            render: (_, record) => renderShiftName(record, '日勤'),
+            render: (value, record) =>
+              renderEditableText('dailyName', value, record, '请输入姓名'),
           },
         ],
       },
@@ -322,7 +285,33 @@ const MyLedger = () => {
         dataIndex: 'identityType',
         width: 120,
         align: 'center',
+        render: (value, record) =>
+          renderEditableText('identityType', value, record, '请输入职务'),
       },
+      ...(editable
+        ? [
+            {
+              title: '操作',
+              width: 80,
+              align: 'center',
+              render: (_, record) => (
+                <Popconfirm
+                  title="确认删除该行？"
+                  onConfirm={() => dispatch(removeDetail(record.id))}
+                  okText="确认"
+                  cancelText="取消"
+                >
+                  <Button
+                    type="link"
+                    danger
+                    icon={<DeleteOutlined />}
+                    size="small"
+                  />
+                </Popconfirm>
+              ),
+            },
+          ]
+        : []),
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editable, cfg, details]);
@@ -334,12 +323,9 @@ const MyLedger = () => {
           <div style={styles.toolbarLeft}>
             <DatePicker
               picker="month"
-              value={month ? dayjs(month) : null}
+              value={dayjs(currentMonth)}
               format="YYYY-MM"
-              onChange={(date) => {
-                setMonth(date ? date.format('YYYY-MM') : '');
-              }}
-              allowClear
+              disabled
             />
             {ledger && (
               <Tag
@@ -351,7 +337,8 @@ const MyLedger = () => {
             )}
           </div>
           <div style={styles.toolbarRight}>
-            <Button
+            <Button onClick={handleAddRow}>新增一行</Button>
+            {/* <Button
               type="primary"
               icon={<SaveOutlined />}
               loading={saving}
@@ -359,19 +346,19 @@ const MyLedger = () => {
               onClick={handleSave}
             >
               保存
-            </Button>
+            </Button> */}
             <Popconfirm
               title="提交后将无法修改，确认提交审批？"
               onConfirm={handleSubmit}
               okText="确认提交"
               cancelText="取消"
-              disabled={!editable}
+              disabled={!editable || !user?.orgUnitId}
             >
               <Button
                 type="primary"
                 icon={<SendOutlined />}
                 loading={submitting}
-                disabled={!editable}
+                disabled={!editable || !user?.orgUnitId}
                 style={{
                   background: editable
                     ? 'linear-gradient(135deg, #52c41a, #389e0d)'
@@ -403,12 +390,6 @@ const MyLedger = () => {
               <Descriptions.Item label="台账月份">
                 {ledger.ledgerMonth}
               </Descriptions.Item>
-              <Descriptions.Item label="在岗人数">
-                {ledger.inWorkCount}
-              </Descriptions.Item>
-              <Descriptions.Item label="创建人">
-                {ledger.creatorName}
-              </Descriptions.Item>
             </Descriptions>
           </Card>
           <Card size="small" title="现员台账明细">
@@ -416,7 +397,7 @@ const MyLedger = () => {
               <Table
                 columns={columns}
                 dataSource={details}
-                rowKey={(r) => r.id ?? r.tempId ?? Math.random()}
+                rowKey={(r, index) => r.id ?? r.tempId ?? `fallback-${index}`}
                 rowClassName={rowClassName}
                 onRow={(record) => ({
                   style: rowStyle(record),
@@ -434,7 +415,7 @@ const MyLedger = () => {
               <Input.TextArea
                 rows={3}
                 value={formRemark}
-                onChange={(e) => setFormRemark(e.target.value)}
+                onChange={(e) => dispatch(setRemark(e.target.value))}
                 disabled={!editable}
                 placeholder="请输入备注"
               />
@@ -467,7 +448,9 @@ const MyLedger = () => {
                             {record.step === 'DIRECTOR'
                               ? '主任审批'
                               : '人事审核'}
-                            {actionMap[record.action] ? ` - ${actionMap[record.action]}` : ''}
+                            {actionMap[record.action]
+                              ? ` - ${actionMap[record.action]}`
+                              : ''}
                           </Tag>
                           <span
                             style={{

@@ -51,6 +51,16 @@ const AllEmployeeBasic = () => {
       },
     },
     {
+      title: '操作',
+      width: 120,
+      align: 'center',
+      render: (_, record) => (
+        <Button type="link" onClick={() => navigate(`/admin-employee-basic?orgUnitId=${record.orgUnitId}`)}>
+          查看详情
+        </Button>
+      ),
+    },
+    {
       title: '提交时间',
       dataIndex: 'submittedAt',
       width: 180,

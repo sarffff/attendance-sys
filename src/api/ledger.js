@@ -13,11 +13,11 @@ export function importBasic(file) {
 }
 
 //导出现员表
-export function exportBasic(orgUnitId) {
+export function exportBasic(orgUnitId, extraParams = {}) {
   return request({
     url: '/ledger/basic/export',
     method: 'get',
-    params: { orgUnitId },
+    params: { orgUnitId, ...extraParams },
     responseType: 'blob'
   })
 }
@@ -112,10 +112,11 @@ export function syncBasic(month) {
 }
 
 //提交台账
-export function submitLedger(id) {
+export function submitLedger(data) {
   return request({
-    url: `/ledger/${id}/submit`,
-    method: 'post'
+    url: '/ledger/submit',
+    method: 'post',
+    data
   })
 }
 

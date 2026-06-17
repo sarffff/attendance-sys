@@ -18,6 +18,7 @@ import {
   FilePdfOutlined,
   SwapOutlined,
   ReloadOutlined,
+  ArrowLeftOutlined,
 } from '@ant-design/icons';
 import {
   getLedgerDetail,
@@ -26,7 +27,8 @@ import {
   getConfig,
 } from '@/api/ledger';
 import dayjs from 'dayjs';
-import { useAppSelector } from '@/hooks/useAppSelector';
+import { useAppSelector } from '@/store/hooks';
+import { useNavigate } from 'react-router-dom';
 import { actionMap, STATUS_MAP, DEFAULT_CONFIG } from '@/constants/constantsMap';
 import { formatTime } from '@/utils/formatTime';
 
@@ -70,6 +72,7 @@ const detailRoles = ['ATTENDANCE_ADMIN', 'HR_SECTION_CHIEF']
 
 const HRLedgerDetail = () => {
   const user = useAppSelector((state) => state.user.userInfo);
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const ledgerId = searchParams.get('orgUnitId') ?? searchParams.get('id');
 
@@ -319,40 +322,50 @@ const HRLedgerDetail = () => {
         </Card>
       ) : ledger ? (
         <div style={styles.page}>
-          {user.roleCode && detailRoles.includes(user.roleCode) ? (  <div style={styles.exportBar}>
+          <div style={styles.exportBar}>
             <Space>
               <Button
-                icon={<FileExcelOutlined />}
-                style={{
-                  color: '#fff',
-                  background: 'linear-gradient(135deg, #52c41a, #389e0d)',
-                  border: 'none',
-                  borderRadius: 9999,
-                  fontWeight: 500,
-                }}
-                onClick={handleExportExcel}
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigate(-1)}
               >
-                导出Excel
-              </Button>
-              <Button
-                icon={<SwapOutlined />}
-                loading={compareLoading}
-                style={{
-                  color: '#fff',
-                  background: 'linear-gradient(135deg, #409EFF, #1677ff)',
-                  border: 'none',
-                  borderRadius: 9999,
-                  fontWeight: 500,
-                }}
-                onClick={handleCompare}
-              >
-                月度对比
-              </Button>
-              <Button icon={<ReloadOutlined />} onClick={loadLedger}>
-                刷新
+                返回
               </Button>
             </Space>
-          </div>) : null}
+            {user.roleCode && detailRoles.includes(user.roleCode) ? (
+              <Space>
+                <Button
+                  icon={<FileExcelOutlined />}
+                  style={{
+                    color: '#fff',
+                    background: 'linear-gradient(135deg, #52c41a, #389e0d)',
+                    border: 'none',
+                    borderRadius: 9999,
+                    fontWeight: 500,
+                  }}
+                  onClick={handleExportExcel}
+                >
+                  导出Excel
+                </Button>
+                <Button
+                  icon={<SwapOutlined />}
+                  loading={compareLoading}
+                  style={{
+                    color: '#fff',
+                    background: 'linear-gradient(135deg, #409EFF, #1677ff)',
+                    border: 'none',
+                    borderRadius: 9999,
+                    fontWeight: 500,
+                  }}
+                  onClick={handleCompare}
+                >
+                  月度对比
+                </Button>
+                <Button icon={<ReloadOutlined />} onClick={loadLedger}>
+                  刷新
+                </Button>
+              </Space>
+            ) : null}
+          </div>
 
           <Card size="small">
             <Descriptions size="small" column={4} bordered>

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { store } from '@/store'
+import { logout } from '@/store/modules/user'
 import { message } from 'antd'
 
 const service = axios.create({
@@ -36,6 +37,8 @@ service.interceptors.response.use(
     switch (err.response?.status) {
       case 401:
         message.error("登录已过期，请重新登录")
+        store.dispatch(logout())
+        window.location.href = '/login'
         break
       case 403:
         message.error("暂无权限")
