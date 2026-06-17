@@ -1,12 +1,13 @@
-import { useState, useMemo } from 'react';
+﻿import { useState, useMemo, useCallback } from 'react';
 import { Card, Button, Tag, Select, Space, Modal, Input, message } from 'antd';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   EyeOutlined,
   ReloadOutlined,
+  FileExcelOutlined,
 } from '@ant-design/icons';
-import { getPendingLedgers, hrReviewLedger } from '@/api/ledger';
+import { getPendingLedgers, hrReviewLedger, exportLedgerBatch } from '@/api/ledger';
 import { useNavigate } from 'react-router-dom';
 import BaseTable from '@/components/BaseTable';
 import dayjs from 'dayjs';
@@ -63,6 +64,7 @@ const AllLedger = () => {
 
   const [status, setStatus] = useState('');
   const [isRefresh, setIsRefresh] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalAction, setModalAction] = useState(null);
@@ -75,6 +77,27 @@ const AllLedger = () => {
     if (status) p.status = status;
     return p;
   }, [status]);
+
+  const handleBatchExport = useCallback(async () => {
+    if (!selectedRowKeys.length) return;
+    try {
+      message.loading('正在批量导出台账Excel...', 0);
+      const blob = await exportLedgerBatch(selectedRowKeys);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `台账批量导出` + dayjs().format('YYYY-MM-DD') + '.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      message.destroy();
+      message.success('批量导出成功');
+    } catch {
+      message.destroy();
+      message.error('批量导出失败');
+    }
+  }, [selectedRowKeys]);
 
   const openModal = (record, action) => {
     setModalRecord(record);
@@ -179,6 +202,14 @@ const AllLedger = () => {
       title="台账审核"
       extra={
         <div style={styles.cardExtra}>
+          <Button
+            icon={<FileExcelOutlined />}
+            style={{ color: '#52c41a', borderColor: '#52c41a' }}
+            disabled={!selectedRowKeys.length}
+            onClick={handleBatchExport}
+          >
+            批量导出
+          </Button>
           <Select
             value={status}
             onChange={setStatus}
@@ -198,8 +229,12 @@ const AllLedger = () => {
         columns={columns}
         request={getPendingLedgers}
         params={params}
-        rowKey="id"
+        rowKey="orgUnitId"
         isRefresh={isRefresh}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
       />
 
       <Modal

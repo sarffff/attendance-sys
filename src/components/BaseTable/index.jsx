@@ -8,6 +8,7 @@ const BaseTable = ({
   params,
   rowSelection = false,
   isRefresh = false,
+  rowKey = 'id',
 }) => {
   const [pagination, setPagination] = useState({ pageNum: 1, pageSize: 10 });
   const [prevParams, setPrevParams] = useState(params);
@@ -49,7 +50,7 @@ const BaseTable = ({
 
   return (
     <Table
-      rowKey="id"
+      rowKey={rowKey}
       columns={columns}
       dataSource={records || []}
       loading={loading}

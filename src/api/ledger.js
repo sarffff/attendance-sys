@@ -205,3 +205,24 @@ export function getSubmitStatus(params) {
     params
   })
 }
+
+
+//批量导出现员表
+export function exportBasicBatch(orgUnitIds) {
+  return request({
+    url: '/ledger/basic/batch-export',
+    method: 'post',
+    data: { orgUnitIds },
+    responseType: 'blob'
+  })
+}
+
+//批量导出现员台账表
+export function exportLedgerBatch(orgUnitIds) {
+  return request({
+    url: '/ledger/batch-export',
+    method: 'post',
+    data: { orgUnitIds },
+    responseType: 'blob'
+  })
+}

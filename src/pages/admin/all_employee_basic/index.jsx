@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react';
-import { Card, Tag, Select, Space, Button } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+﻿import { useState, useMemo, useCallback } from 'react';
+import { Card, Tag, Select, Space, Button, message } from 'antd';
+import { ReloadOutlined, FileExcelOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import BaseTable from '@/components/BaseTable';
-import { getSubmitStatus } from '@/api/ledger';
+import { getSubmitStatus, exportBasicBatch } from '@/api/ledger';
 import dayjs from 'dayjs';
 
 const STATUS_MAP = {
@@ -21,12 +21,34 @@ const AllEmployeeBasic = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState('');
   const [isRefresh, setIsRefresh] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   const params = useMemo(() => {
     const p = {};
     if (status) p.status = status;
     return p;
   }, [status]);
+
+  const handleBatchExport = useCallback(async () => {
+    if (!selectedRowKeys.length) return;
+    try {
+      message.loading('正在批量导出Excel...', 0);
+      const blob = await exportBasicBatch(selectedRowKeys);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `现员信息批量导出${dayjs().format('YYYY-MM-DD')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      message.destroy();
+      message.success('批量导出成功');
+    } catch {
+      message.destroy();
+      message.error('批量导出失败');
+    }
+  }, [selectedRowKeys]);
 
   const columns = [
     { title: '部门ID', dataIndex: 'orgUnitId', width: 100, align: 'center' },
@@ -73,6 +95,14 @@ const AllEmployeeBasic = () => {
       title="现员提交状态"
       extra={
         <Space>
+          <Button
+            icon={<FileExcelOutlined />}
+            style={{ color: '#52c41a', borderColor: '#52c41a' }}
+            disabled={!selectedRowKeys.length}
+            onClick={handleBatchExport}
+          >
+            批量导出
+          </Button>
           <Select
             value={status}
             onChange={setStatus}
@@ -91,6 +121,10 @@ const AllEmployeeBasic = () => {
         params={params}
         rowKey="orgUnitId"
         isRefresh={isRefresh}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
       />
     </Card>
   );
