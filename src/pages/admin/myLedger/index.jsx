@@ -73,6 +73,7 @@ const MyLedger = () => {
   const ledger = useAppSelector((state) => state.myLedger);
   const details = useAppSelector((state) => state.myLedger.details);
   const formRemark = useAppSelector((state) => state.myLedger.remark);
+  const templateFields = useAppSelector((state) => state.myLedger.templateFields);
 
   const loading = false;
   const [submitting, setSubmitting] = useState(false);
@@ -255,7 +256,7 @@ const MyLedger = () => {
       return;
     }
     try {
-      const blob = await exportLedgerExcelByTemplate(ledger.id);
+      const blob = await exportLedgerExcelByTemplate(user.orgUnitId);
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement('a');
       link.href = url;
@@ -285,131 +286,152 @@ const MyLedger = () => {
         value || ''
       );
 
-    return [
-      {
-        title: '岗点',
-        dataIndex: 'stationPoint',
-        width: 120,
-        align: 'center',
-        render: (value, record) =>
-          renderEditableText('stationPoint', value, record, '请输入岗点'),
-      },
-      {
-        title: '班组',
-        dataIndex: 'teamName',
-        width: 140,
-        align: 'center',
-        render: (value, record) =>
-          renderEditableText('teamName', value, record, '请输入班组'),
-      },
-      {
-        title: '岗位',
-        dataIndex: 'workType',
-        width: 140,
-        align: 'center',
-        render: (value, record) =>
-            editable ? (
-            <Select
-              size="small"
-              value={value || undefined}
-              options={workType.map((wt) => ({ label: wt, value: wt }))}
-              onChange={(v) => updateCell(record, 'workType', v)}
-              style={styles.cellSelect}
-              placeholder="请选择岗位"
-            />
+    const renderSelect = (field, value, record, options, placeholder) =>
+      editable ? (
+        <Select
+          size="small"
+          value={value || undefined}
+          options={options.map((item) => ({ label: item, value: item }))}
+          onChange={(v) => updateCell(record, field, v)}
+          style={styles.cellSelect}
+          placeholder={placeholder}
+        />
+      ) : (
+        value || ''
+      );
 
-          ) : (
-            value || ''
-          ),
-      },
-      {
-        title: '班别',
-        align: 'center',
-        children: TEAM_KEYWORDS.map((t) => ({
-          title: t,
+    // 根据 templateFields 动态生成列
+    const templateColumns = [];
+    const shiftFields = [];
+    const normalFields = [];
+
+    if (templateFields && templateFields.fields) {
+      templateFields.fields.forEach((field) => {
+        if (field.shift) {
+          shiftFields.push(field);
+        } else {
+          normalFields.push(field);
+        }
+      });
+    }
+
+        // 生成普通列（shift=false 的字段）
+    normalFields.forEach((field) => {
+      // 特殊处理：岗位字段使用 Select
+      if (field.label === '岗位') {
+        templateColumns.push({
+          title: field.label,
+          dataIndex: field.name,
+          width: 140,
+          align: 'center',
+          render: (value, record) =>
+            renderSelect(field.name, value, record, workType, '请选择岗位'),
+        });
+      }
+      // 特殊处理：日勤字段需要二级表头
+      else if (field.label === '日勤') {
+        templateColumns.push({
+          title: field.label,
           align: 'center',
           children: [
             {
               title: '姓名',
-              children: SHIFT_FIELDS[t].map((field) => ({
-                width: 100,
-                align: 'center',
-                dataIndex: field,
-                render: (value, record) =>
-                  renderEditableText(field, value, record, '请输入姓名'),
-              })),
+              dataIndex: field.name,
+              width: 110,
+              align: 'center',
+              render: (value, record) =>
+                renderEditableText(field.name, value, record, '请输入姓名'),
             },
           ],
-        })),
-      },
-      {
-        title: '班制',
-        dataIndex: 'shiftCategory',
-        width: 140,
+        });
+      }
+      // 班制字段使用 Select
+      else if (field.label === '班制') {
+        templateColumns.push({
+          title: field.label,
+          dataIndex: field.name,
+          width: 140,
+          align: 'center',
+          render: (value, record) =>
+            renderSelect(field.name, value, record, LaborShifts, '请选择班制'),
+        });
+      }
+      // 其他普通字段
+      else {
+        templateColumns.push({
+          title: field.label,
+          dataIndex: field.name,
+          width: 120,
+          align: 'center',
+          render: (value, record) =>
+            renderEditableText(field.name, value, record, `请输入${field.label}`),
+        });
+      }
+    });
+
+    // 生成班别列（shift=true 的字段）
+    if (shiftFields.length > 0) {
+      // 按 label 分组，相同的 label 只渲染一个二级表头
+      const groupedByLabel = {};
+      shiftFields.forEach((field) => {
+        if (!groupedByLabel[field.label]) {
+          groupedByLabel[field.label] = [];
+        }
+        groupedByLabel[field.label].push(field);
+      });
+
+      const shiftChildren = Object.keys(groupedByLabel).map((label) => ({
+        title: label,
         align: 'center',
-        render: (value, record) =>
-          editable ? (
-            <Select
-              size="small"
-              value={value || undefined}
-              options={LaborShifts.map((item) => ({ label: item, value: item }))}
-              onChange={(v) => updateCell(record, 'shiftCategory', v)}
-              style={styles.cellSelect}
-              placeholder="请选择班制"
-            />
-          ) : (
-            value || ''
-          ),
-      },
-      {
-        title: '日勤',
-        align: 'center',
-        children: [
+        children: groupedByLabel[label].flatMap((field) => [
           {
-            title: '姓名',
-            dataIndex: 'dailyName',
-            width: 110,
+            // title: `${field.name}1`,
+            dataIndex: `${field.name}1`,
+            width: 100,
             align: 'center',
             render: (value, record) =>
-              renderEditableText('dailyName', value, record, '请输入姓名'),
+              renderEditableText(`${field.name}1`, value, record, '请输入姓名'),
           },
-        ],
-      },
-      {
-        title: '职务',
-        dataIndex: 'identityType',
-        width: 120,
+
+        ]),
+      }));
+
+      templateColumns.push({
+        title: '班别',
         align: 'center',
-        render: (value, record) =>
-          renderEditableText('identityType', value, record, '请输入职务'),
-      },
-      ...(editable
-        ? [
-            {
-              title: '操作',
-              width: 80,
-              align: 'center',
-              render: (_, record) => (
-                <Popconfirm
-                  title="确认删除该行？"
-                  onConfirm={() => dispatch(removeDetail(record.id))}
-                  okText="确认"
-                  cancelText="取消"
-                >
-                  <Button
-                    type="link"
-                    danger
-                    icon={<DeleteOutlined />}
-                    size="small"
-                  />
-                </Popconfirm>
-              ),
-            },
-          ]
-        : []),
-    ];
+        children: shiftChildren,
+      });
+    }
+
+    // 操作列
+    const actionColumn = editable
+      ? [
+          {
+            title: '操作',
+            width: 80,
+            align: 'center',
+            render: (_, record) => (
+              <Popconfirm
+                title="确认删除该行？"
+                onConfirm={() => dispatch(removeDetail(record.id))}
+                okText="确认"
+                cancelText="取消"
+              >
+                <Button
+                  type="link"
+                  danger
+                  icon={<DeleteOutlined />}
+                  size="small"
+                />
+              </Popconfirm>
+            ),
+          },
+        ]
+      : [];
+
+    return [...templateColumns, ...actionColumn];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editable, cfg, details]);
+  }, [editable, cfg, details, templateFields]);
 
   return (
     <div style={styles.page}>
