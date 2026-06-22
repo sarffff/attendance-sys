@@ -226,3 +226,38 @@ export function exportLedgerBatch(orgUnitIds) {
     responseType: 'blob'
   })
 }
+
+//获取车间台账模板
+export function getLedgerTemplate(orgUnitId) {
+  return request({
+    url: `ledger/template-fields/${orgUnitId}`,
+    method: 'get'
+  })
+}
+
+//按模板导出台账excel
+export function exportLedgerExcelByTemplate(id) {
+  return request({
+    url: `/ledger/${id}/template-excel`,
+    method: 'get',
+    responseType: 'blob'
+  })
+}
+
+//下载台账模板
+export function downloadLedgerTemplate(orgUnitId) {
+  return request({
+    url: `/ledger/template/download/${orgUnitId}`,
+    method: 'get',
+    responseType: 'blob'
+  })
+}
+
+//上传台账模板
+export function uploadLedgerTemplate(orgUnitId, file) {
+  return request({
+    url: `/ledger/template/upload/${orgUnitId}`,
+    method: 'post',
+    data: file
+  })
+}

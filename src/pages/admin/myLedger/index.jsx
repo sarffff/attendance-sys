@@ -13,14 +13,26 @@ import {
   Empty,
   Spin,
   Select,
+  Upload,
 } from 'antd';
-import { SaveOutlined, SendOutlined, DeleteOutlined } from '@ant-design/icons';
+import {
+  SaveOutlined,
+  SendOutlined,
+  DeleteOutlined,
+  UploadOutlined,
+  DownloadOutlined,
+  ExportOutlined,
+} from '@ant-design/icons';
 import {
   submitLedger,
   getConfig,
+  getLedgerTemplate,
+  exportLedgerExcelByTemplate,
+  downloadLedgerTemplate,
+  uploadLedgerTemplate
 } from '@/api/ledger';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { addDetail, updateDetail, removeDetail, setRemark } from '@/store/modules/myLedger';
+import { addDetail, updateDetail, removeDetail, setRemark, setTemplateFields } from '@/store/modules/myLedger';
 import dayjs from 'dayjs';
 import {
   actionMap,
@@ -64,6 +76,7 @@ const MyLedger = () => {
 
   const loading = false;
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const [cfg, setCfg] = useState(DEFAULT_CONFIG);
 
@@ -103,9 +116,22 @@ const MyLedger = () => {
     }
   }, []);
 
+  const loadTemplateFields = useCallback(async () => {
+    if (!user?.orgUnitId) return;
+    try {
+      const data = await getLedgerTemplate(user.orgUnitId);
+      if (data) {
+        dispatch(setTemplateFields(data));
+      }
+    } catch {
+      console.error('获取台账模板失败');
+    }
+  }, [user?.orgUnitId, dispatch]);
+
   useEffect(() => {
     loadConfig();
-  }, [loadConfig]);
+    loadTemplateFields();
+  }, [loadConfig, loadTemplateFields]);
 
   const rowClassName = (record) => {
     if (record.isTeamLeader === 1 && cfg.showTeamLeaderColor)
@@ -175,6 +201,75 @@ const MyLedger = () => {
   //   }
   //   return false;
   // };
+
+  // 下载台账模板
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await downloadLedgerTemplate(user.orgUnitId);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `台账模板_${dayjs().format('YYYY-MM-DD')}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      message.success('台账模板下载成功');
+    } catch (error) {
+      message.error('下载台账模板失败');
+      console.error(error);
+    }
+  };
+
+  // 上传台账模板
+  const handleUploadTemplate = async (file) => {
+    const isExcel = file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      file.type === 'application/vnd.ms-excel' ||
+      file.name.endsWith('.xlsx') ||
+      file.name.endsWith('.xls');
+
+    if (!isExcel) {
+      message.error('请上传Excel文件（.xlsx或.xls格式）');
+      return false;
+    }
+
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      await uploadLedgerTemplate(user.orgUnitId, formData);
+      message.success('台账模板上传成功');
+    } catch (error) {
+      message.error('上传台账模板失败');
+      console.error(error);
+    } finally {
+      setUploading(false);
+    }
+    return false; // 阻止antd Upload组件默认上传
+  };
+
+  // 导出台账
+  const handleExport = async () => {
+    if (!ledger) {
+      message.warning('暂无数据可导出');
+      return;
+    }
+    try {
+      const blob = await exportLedgerExcelByTemplate(ledger.id);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `现员台账_${ledger.orgUnitName}_${dayjs().format('YYYY-MM-DD')}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      message.success('台账导出成功');
+    } catch (error) {
+      message.error('导出台账失败');
+      console.error(error);
+    }
+  };
 
   const columns = useMemo(() => {
     const renderEditableText = (field, value, record, placeholder) =>
@@ -338,6 +433,36 @@ const MyLedger = () => {
           </div>
           <div style={styles.toolbarRight}>
             <Button onClick={handleAddRow}>新增一行</Button>
+
+            <Upload
+              accept=".xlsx,.xls"
+              showUploadList={false}
+              beforeUpload={handleUploadTemplate}
+              disabled={uploading}
+            >
+              <Button
+                icon={<UploadOutlined />}
+                loading={uploading}
+              >
+                上传台账模板
+              </Button>
+            </Upload>
+
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={handleDownloadTemplate}
+            >
+              下载台账模板
+            </Button>
+
+            <Button
+              icon={<ExportOutlined />}
+              onClick={handleExport}
+              disabled={!ledger}
+            >
+              导出台账
+            </Button>
+
             {/* <Button
               type="primary"
               icon={<SaveOutlined />}

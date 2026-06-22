@@ -23,6 +23,7 @@ const initialState = loadState() || {
   approvalRecords: [],
   details: [{ id: 1, sortNo: 1 }],
   remark: '',
+  templateFields: [],
 }
 
 const myLedgerSlice = createSlice({
@@ -54,11 +55,14 @@ const myLedgerSlice = createSlice({
     setRemark(state, action) {
       state.remark = action.payload
     },
+    setTemplateFields(state, action) {
+      state.templateFields = action.payload
+    },
     setLedgerMeta(state, action) {
       Object.assign(state, action.payload)
     },
   },
 })
 
-export const { setDetails, updateDetail, addDetail, removeDetail, setRemark, setLedgerMeta } = myLedgerSlice.actions
+export const { setDetails, updateDetail, addDetail, removeDetail, setRemark, setTemplateFields, setLedgerMeta } = myLedgerSlice.actions
 export default myLedgerSlice.reducer
