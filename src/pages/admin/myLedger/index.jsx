@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Card,
   Table,
@@ -29,7 +29,7 @@ import {
   getLedgerTemplate,
   exportLedgerExcelByTemplate,
   downloadLedgerTemplate,
-  uploadLedgerTemplate
+  uploadLedgerTemplate,
 } from '@/api/ledger';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { addDetail, updateDetail, removeDetail, setRemark, setTemplateFields } from '@/store/modules/myLedger';
@@ -300,80 +300,17 @@ const MyLedger = () => {
         value || ''
       );
 
-    // 根据 templateFields 动态生成列
+    // 根据 templateFields 动态生成列（保持原始顺序）
     const templateColumns = [];
-    const shiftFields = [];
-    const normalFields = [];
+    // 存储连续的 shift 字段，用于合并为一个班别列
+    const consecutiveShiftFields = [];
 
-    if (templateFields && templateFields.fields) {
-      templateFields.fields.forEach((field) => {
-        if (field.shift) {
-          shiftFields.push(field);
-        } else {
-          normalFields.push(field);
-        }
-      });
-    }
+    const flushShiftFields = () => {
+      if (consecutiveShiftFields.length === 0) return;
 
-        // 生成普通列（shift=false 的字段）
-    normalFields.forEach((field) => {
-      // 特殊处理：岗位字段使用 Select
-      if (field.label === '岗位') {
-        templateColumns.push({
-          title: field.label,
-          dataIndex: field.name,
-          width: 140,
-          align: 'center',
-          render: (value, record) =>
-            renderSelect(field.name, value, record, workType, '请选择岗位'),
-        });
-      }
-      // 特殊处理：日勤字段需要二级表头
-      else if (field.label === '日勤') {
-        templateColumns.push({
-          title: field.label,
-          align: 'center',
-          children: [
-            {
-              title: '姓名',
-              dataIndex: field.name,
-              width: 110,
-              align: 'center',
-              render: (value, record) =>
-                renderEditableText(field.name, value, record, '请输入姓名'),
-            },
-          ],
-        });
-      }
-      // 班制字段使用 Select
-      else if (field.label === '班制') {
-        templateColumns.push({
-          title: field.label,
-          dataIndex: field.name,
-          width: 140,
-          align: 'center',
-          render: (value, record) =>
-            renderSelect(field.name, value, record, LaborShifts, '请选择班制'),
-        });
-      }
-      // 其他普通字段
-      else {
-        templateColumns.push({
-          title: field.label,
-          dataIndex: field.name,
-          width: 120,
-          align: 'center',
-          render: (value, record) =>
-            renderEditableText(field.name, value, record, `请输入${field.label}`),
-        });
-      }
-    });
-
-    // 生成班别列（shift=true 的字段）
-    if (shiftFields.length > 0) {
       // 按 label 分组，相同的 label 只渲染一个二级表头
       const groupedByLabel = {};
-      shiftFields.forEach((field) => {
+      consecutiveShiftFields.forEach((field) => {
         if (!groupedByLabel[field.label]) {
           groupedByLabel[field.label] = [];
         }
@@ -386,13 +323,20 @@ const MyLedger = () => {
         children: groupedByLabel[label].flatMap((field) => [
           {
             // title: `${field.name}1`,
-            dataIndex: `${field.name}1`,
+            dataIndex: `${field.name}`,
             width: 100,
             align: 'center',
             render: (value, record) =>
-              renderEditableText(`${field.name}1`, value, record, '请输入姓名'),
+              renderEditableText(`${field.name}`, value, record, '请输入姓名'),
           },
-
+          // {
+          //   title: `${field.name}2`,
+          //   dataIndex: `${field.name}2`,
+          //   width: 100,
+          //   align: 'center',
+          //   render: (value, record) =>
+          //     renderEditableText(`${field.name}2`, value, record, '请输入姓名'),
+          // },
         ]),
       }));
 
@@ -401,6 +345,74 @@ const MyLedger = () => {
         align: 'center',
         children: shiftChildren,
       });
+
+      consecutiveShiftFields.length = 0;
+    };
+
+    if (templateFields && templateFields.fields) {
+      templateFields.fields.forEach((field) => {
+        if (field.shift) {
+          // shift 字段先缓存，后面合并为一个班别列
+          consecutiveShiftFields.push(field);
+        } else {
+          // 遇到非 shift 字段，先处理缓存的 shift 字段
+          flushShiftFields();
+
+          // 特殊处理：岗位字段使用 Select
+          if (field.label === '岗位') {
+            templateColumns.push({
+              title: field.label,
+              dataIndex: field.name,
+              width: 140,
+              align: 'center',
+              render: (value, record) =>
+                renderSelect(field.name, value, record, workType, '请选择岗位'),
+            });
+          }
+          // 特殊处理：日勤字段需要二级表头
+          else if (field.label === '日勤') {
+            templateColumns.push({
+              title: field.label,
+              align: 'center',
+              children: [
+                {
+                  title: '姓名',
+                  dataIndex: field.name,
+                  width: 110,
+                  align: 'center',
+                  render: (value, record) =>
+                    renderEditableText(field.name, value, record, '请输入姓名'),
+                },
+              ],
+            });
+          }
+          // 班制字段使用 Select
+          else if (field.label === '班制') {
+            templateColumns.push({
+              title: field.label,
+              dataIndex: field.name,
+              width: 140,
+              align: 'center',
+              render: (value, record) =>
+                renderSelect(field.name, value, record, LaborShifts, '请选择班制'),
+            });
+          }
+          // 其他普通字段
+          else {
+            templateColumns.push({
+              title: field.label,
+              dataIndex: field.name,
+              width: 120,
+              align: 'center',
+              render: (value, record) =>
+                renderEditableText(field.name, value, record, `请输入${field.label}`),
+            });
+          }
+        }
+      });
+
+      // 处理最后可能剩余的 shift 字段
+      flushShiftFields();
     }
 
     // 操作列

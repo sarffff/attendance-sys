@@ -21,7 +21,7 @@ const initialState = loadState() || {
   inWorkCount: 0,
   creatorName: '',
   approvalRecords: [],
-  details: [{ id: 1, sortNo: 1 }],
+  details: [],
   remark: '',
   templateFields: [],
 }
@@ -44,10 +44,25 @@ const myLedgerSlice = createSlice({
     },
     addDetail(state) {
       const maxId = state.details.reduce((max, item) => Math.max(max, item.id || 0), 0)
-      state.details.push({
+      const newDetail = {
         id: maxId + 1,
         sortNo: state.details.length + 1,
-      })
+      }
+
+      // 如果有模板字段，初始化所有字段为空字符串
+      if (state.templateFields && state.templateFields.fields) {
+        state.templateFields.fields.forEach((field) => {
+          if (field.shift) {
+            // shift 字段需要初始化两个子字段
+            newDetail[`${field.name}`] = ''
+            // newDetail[`${field.name}2`] = ''
+          } else {
+            newDetail[field.name] = ''
+          }
+        })
+      }
+
+      state.details.push(newDetail)
     },
     removeDetail(state, action) {
       state.details = state.details.filter((item) => item.id !== action.payload)

@@ -25,6 +25,7 @@ import {
   exportLedgerExcel,
   compareLedger,
   getConfig,
+  getLedgerTemplate,
 } from '@/api/ledger';
 import dayjs from 'dayjs';
 import { useAppSelector } from '@/store/hooks';
@@ -81,6 +82,7 @@ const HRLedgerDetail = () => {
   const [ledger, setLedger] = useState(null);
   const [loading, setLoading] = useState(false);
   const [cfg, setCfg] = useState(DEFAULT_CONFIG);
+  const [templateFields, setTemplateFields] = useState(null);
 
   const [compareData, setCompareData] = useState(null);
   const [compareLoading, setCompareLoading] = useState(false);
@@ -112,12 +114,25 @@ const HRLedgerDetail = () => {
     try {
       const data = await getLedgerDetail(ledgerId);
       setLedger(data || null);
+      // 加载台账模板
+      if (data?.orgUnitId) {
+        loadTemplateFields(data.orgUnitId);
+      }
     } catch {
       setLedger(null);
     } finally {
       setLoading(false);
     }
   }, [ledgerId]);
+
+  const loadTemplateFields = useCallback(async (orgUnitId) => {
+    try {
+      const data = await getLedgerTemplate(orgUnitId);
+      setTemplateFields(data || null);
+    } catch {
+      // 使用默认列配置
+    }
+  }, []);
 
   useEffect(() => {
     loadConfig();
@@ -221,6 +236,92 @@ const HRLedgerDetail = () => {
   };
 
   const columns = useMemo(() => {
+    // 根据 templateFields 动态生成列（保持原始顺序）
+    const templateColumns = [];
+    // 存储连续的 shift 字段，用于合并为一个班别列
+    const consecutiveShiftFields = [];
+
+    const flushShiftFields = () => {
+      if (consecutiveShiftFields.length === 0) return;
+
+      // 按 label 分组，相同的 label 只渲染一个二级表头
+      const groupedByLabel = {};
+      consecutiveShiftFields.forEach((field) => {
+        if (!groupedByLabel[field.label]) {
+          groupedByLabel[field.label] = [];
+        }
+        groupedByLabel[field.label].push(field);
+      });
+
+      const shiftChildren = Object.keys(groupedByLabel).map((label) => ({
+        title: label,
+        align: 'center',
+        children: groupedByLabel[label].flatMap((field) => [
+          {
+            // title: `${field.name}1`,
+            dataIndex: `${field.name}`,
+            width: 100,
+            align: 'center',
+            render: (value) => value || '',
+          },
+
+        ]),
+      }));
+
+      templateColumns.push({
+        title: '班别',
+        align: 'center',
+        children: shiftChildren,
+      });
+
+      consecutiveShiftFields.length = 0;
+    };
+
+    if (templateFields && templateFields.fields) {
+      templateFields.fields.forEach((field) => {
+        if (field.shift) {
+          // shift 字段先缓存，后面合并为一个班别列
+          consecutiveShiftFields.push(field);
+        } else {
+          // 遇到非 shift 字段，先处理缓存的 shift 字段
+          flushShiftFields();
+
+          // 特殊处理：日勤字段需要二级表头
+          if (field.label === '日勤') {
+            templateColumns.push({
+              title: field.label,
+              align: 'center',
+              children: [
+                {
+                  title: '姓名',
+                  dataIndex: field.name,
+                  width: 110,
+                  align: 'center',
+                  render: (value) => value || '',
+                },
+              ],
+            });
+          }
+          // 其他普通字段
+          else {
+            templateColumns.push({
+              title: field.label,
+              dataIndex: field.name,
+              width: 120,
+              align: 'center',
+              render: (value) => value || '',
+            });
+          }
+        }
+      });
+
+      // 处理最后可能剩余的 shift 字段
+      flushShiftFields();
+
+      return templateColumns;
+    }
+
+    // 默认列配置（没有 templateFields 时）
     return [
       {
         title: '岗点',
@@ -286,7 +387,7 @@ const HRLedgerDetail = () => {
       },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg]);
+  }, [cfg, templateFields]);
 
   const compareColumns = [
     { title: '姓名', dataIndex: 'empName', width: 90 },
