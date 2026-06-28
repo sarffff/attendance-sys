@@ -324,23 +324,17 @@ const MyLedger = () => {
       return false;
     }
 
+    if (!templateFields || !templateFields.fields) {
+      message.error("台账模板未加载，请刷新页面后重试");
+      return false;
+    }
+
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { type: "array" });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
 
-      if (jsonData.length < 3) {
-        message.error("Excel文件格式不正确，至少需要表头和数据行");
-        return false;
-      }
-
-      // console.log(jsonData);
-
-      // 第一行：一级表头
-      const headerRow1 = jsonData[2];
-      // 第二级：班别下面的具体表头
-      const headerRow2 = jsonData[3];
       // 数据行，并过滤掉"编外人员"及之后的数据
       let dataRows = jsonData.slice(5);
 
@@ -359,84 +353,34 @@ const MyLedger = () => {
         return false;
       }
 
-      // 构建列索引映射
-      const columnMap = {};
-      let currentFirstHeader = "";
-
-      headerRow1.forEach((header, colIndex) => {
-        if (header) {
-          currentFirstHeader = header;
-        }
-        // 获取二级表头
-        const secondHeader = headerRow2[colIndex] || "";
-
-        // 如果是一级表头对应的列（如岗点、班组、岗位等）
-        if (header && !secondHeader) {
-          columnMap[colIndex] = { type: "normal", field: header };
-        }
-        // 如果是班别下面的列（有二级表头）
-        else if (currentFirstHeader === "班别" && secondHeader) {
-          columnMap[colIndex] = { type: "shift", label: secondHeader };
-        }
-        // 其他有二级表头的列（如日勤）
-        else if (secondHeader) {
-          columnMap[colIndex] = {
-            type: "sub",
-            parent: currentFirstHeader,
-            field: secondHeader,
-          };
+      // 将模板字段展平为有序的字段名列表
+      const fieldNames = [];
+      templateFields.fields.forEach((field) => {
+        if (field.shift) {
+          // shift 字段展开为两个子字段
+          fieldNames.push(`${field.name}`);
+          // fieldNames.push(`${field.name}2`);
+        } else {
+          fieldNames.push(field.name);
         }
       });
 
-      // 解析数据行
+      // 按索引填充数据
       const parsedDetails = dataRows.map((row, rowIndex) => {
         const detail = {
           id: rowIndex + 1,
           sortNo: rowIndex + 1,
         };
 
-        // 遍历列映射
-        Object.entries(columnMap).forEach(([colIndex, config]) => {
+        // 按索引将 Excel 数据填充到对应的字段
+        fieldNames.forEach((fieldName, colIndex) => {
           const value =
             row[colIndex] !== undefined ? String(row[colIndex] || "") : "";
-
-          if (config.type === "normal") {
-            // 普通字段：根据 label 匹配模板字段
-            if (templateFields && templateFields.fields) {
-              const matchedField = templateFields.fields.find(
-                (f) => f.label === config.field && !f.shift,
-              );
-              if (matchedField) {
-                detail[matchedField.name] = value;
-              }
-            }
-          } else if (config.type === "shift") {
-            // 班别字段：根据二级表头匹配模板字段
-            if (templateFields && templateFields.fields) {
-              const matchedField = templateFields.fields.find(
-                (f) => f.shift && f.label === config.label,
-              );
-              if (matchedField) {
-                detail[matchedField.name] = value;
-              }
-            }
-          } else if (config.type === "sub") {
-            // 有二级表头的普通字段（如日勤）
-            if (templateFields && templateFields.fields) {
-              const matchedField = templateFields.fields.find(
-                (f) => f.label === config.parent && !f.shift,
-              );
-              if (matchedField) {
-                detail[matchedField.name] = value;
-              }
-            }
-          }
+          detail[fieldName] = value;
         });
 
         return detail;
       });
-
-      console.log(parsedDetails);
 
       // 过滤掉空行
       const filteredDetails = parsedDetails.filter((detail) => {
