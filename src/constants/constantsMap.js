@@ -43,7 +43,7 @@ export const leaveScopeMap = {
 
 export const SpecialLeaveTypes = ['年休假', '病假', '事假', '丧假', '搬家假']
 
-export const leaderList = ['DEPUTY_STATIONMASTER', 'STATIONMASTER', 'PARTY_SECRETARY'];
+export const leaderList = ['DEPUTY_STATIONMASTER', 'STATIONMASTER', 'PARTY_SECRETARY', 'HR_SECTION_CHIEF'];
 
 export const actionMap = {
   'APPROVE': '同意',

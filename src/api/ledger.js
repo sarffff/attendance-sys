@@ -295,3 +295,62 @@ export function getLeaders() {
     method: 'get'
   })
 }
+
+//设置领导现员数据页面访问权限
+export function setLeaderEmployeePageAccess(targetUserIds, visible) {
+  return request({
+    url: '/ledger/basic/share/access',
+    method: 'post',
+    data: { targetUserIds, visible }
+  })
+}
+
+//设置领导台账页面访问权限
+export function setLeaderLedgerPageAccess(targetUserIds, visible) {
+  return request({
+    url: '/ledger/share/access',
+    method: 'post',
+    data: { targetUserIds, visible }
+  })
+}
+
+//获取有现员数据页面访问权限的领导列表
+export function getLeaderEmployeePageAccess() {
+  return request({
+    url: '/ledger/basic/share/access',
+    method: 'get'
+  })
+}
+
+//获取有台账页面访问权限的领导列表
+export function getLeaderLedgerPageAccess() {
+  return request({
+    url: '/ledger/share/access',
+    method: 'get'
+  })
+}
+
+//获取当前用户可访问的动态页面列表
+// export function getUserAccessiblePages() {
+//   return request({
+//     url: '/ledger/user/accessible-pages',
+//     method: 'get'
+//   })
+// }
+
+//获取领导可查看所有现员数据
+export function getLeaderAllEmployeeBasic() {
+  return request({
+    url: '/ledger/basic/shares',
+    method: 'get'
+  })
+}
+
+//分发领导给现员数据查看
+export function distributeLeaderToEmployee(orgUnitIds, targetUserIds) {
+  return request({
+    url: '/ledger/basic/share',
+    method: 'post',
+    data: { orgUnitIds, targetUserIds }
+  })
+}

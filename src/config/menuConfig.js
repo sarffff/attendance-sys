@@ -174,6 +174,7 @@ export const menuConfig = [
         roles: AllLedgerRoleList,
         element: withSuspense(HrAllLedger),
         isAll: true,
+        dynamicAccess: 'ledger',  // 需要动态权限控制
     },
     {
         key: '/all-employee-basic',
@@ -182,5 +183,6 @@ export const menuConfig = [
         roles: AllLedgerRoleList,
         element: withSuspense(AllEmployeeBasic),
         isAll: true,
+        dynamicAccess: 'employee',  // 需要动态权限控制
     }
 ];

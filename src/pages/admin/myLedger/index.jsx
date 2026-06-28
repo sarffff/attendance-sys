@@ -337,7 +337,7 @@ const MyLedger = () => {
 
       // 数据行，并过滤掉"编外人员"及之后的数据
       let dataRows = jsonData.slice(5);
-
+      // console.log(dataRows);
       // 查找包含"编外人员"的行索引
       const excludeIndex = dataRows.findIndex((row) =>
         row.some((cell) => cell && String(cell).includes("编外人员")),
@@ -364,6 +364,8 @@ const MyLedger = () => {
           fieldNames.push(field.name);
         }
       });
+
+      console.log(fieldNames);
 
       // 按索引填充数据
       const parsedDetails = dataRows.map((row, rowIndex) => {
@@ -461,6 +463,7 @@ const MyLedger = () => {
               ? "extraShiftJson"
               : field.name,
             width: 100,
+            title: "姓名",
             align: "center",
             render: (value, record) => {
               const displayVal = field.name.startsWith("extra:")
