@@ -261,3 +261,37 @@ export function uploadLedgerTemplate(orgUnitId, file) {
     data: file
   })
 }
+
+//分发台账给领导查看
+export function distributeLedgerToLeaders(ledgerIds, targetUserIds) {
+  return request({
+    url: '/ledger/share',
+    method: 'post',
+    data: { ledgerIds, targetUserIds }
+  })
+}
+
+//获取领导可查看台账
+export function getSharedLedgers() {
+  return request({
+    url: '/ledger/shared-with-me',
+    method: 'get'
+  })
+}
+
+//撤销分发台账
+export function revokeShareLedger(ledgerId, targetUserId) {
+  return request({
+    url: '/ledger/share',
+    method: 'delete',
+    params: { ledgerId, targetUserId }
+  })
+}
+
+//获取领导列表
+export function getLeaders() {
+  return request({
+    url: '/ledger/leaders',
+    method: 'get'
+  })
+}

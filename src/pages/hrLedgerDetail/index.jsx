@@ -232,8 +232,18 @@ const HRLedgerDetail = () => {
     乙班: ['yiBan1', 'yiBan2'],
     丙班: ['bingBan1', 'bingBan2'],
     丁班: ['dingBan1', 'dingBan2'],
-    预备: ['yuBei1', 'yuBei2'],
+    预备: ['yuBei1', 'yuBei2', 'yuBei3', 'yuBei4'],
   };
+
+  /** 从 extraShiftJson 中读取额外班次的值 */
+  const getExtraShiftValue = (record, field) => {
+    if (!field.startsWith('extra:')) return record[field]
+    const shiftName = field.replace('extra:', '')
+    try {
+      const obj = JSON.parse(record.extraShiftJson || '{}')
+      return obj[shiftName] || ''
+    } catch { return '' }
+  }
 
   const columns = useMemo(() => {
     // 根据 templateFields 动态生成列（保持原始顺序）
@@ -259,10 +269,15 @@ const HRLedgerDetail = () => {
         children: groupedByLabel[label].flatMap((field) => [
           {
             // title: `${field.name}1`,
-            dataIndex: `${field.name}`,
+            dataIndex: field.name.startsWith('extra:') ? 'extraShiftJson' : field.name,
             width: 100,
             align: 'center',
-            render: (value) => value || '',
+            render: (value, record) => {
+              const displayVal = field.name.startsWith('extra:')
+                ? getExtraShiftValue(record, field.name)
+                : value
+              return displayVal || ''
+            },
           },
 
         ]),

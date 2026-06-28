@@ -17,6 +17,9 @@ import {
     AllLedgerRoleList
 } from '@/constants/roleCode';
 
+// 允许查看详情的角色（包含管理员和领导）
+const viewEmployeeBasicRoles = [...new Set([...commonRoleList, ...AllLedgerRoleList])];
+
 import LoadingPage from '@/components/LoadingPage';
 const Dashboard = lazy(() => import('@/pages/dashboard'));
 const Approval = lazy(() => import('@/pages/approver/approveLeave'));
@@ -97,7 +100,7 @@ export const menuConfig = [
         key: '/admin-employee-basic',
         icon: CalendarOutlined,
         label: '现员表信息',
-        roles: commonRoleList,
+        roles: viewEmployeeBasicRoles,  // 允许管理员和领导访问
         element: withSuspense(AdminEmployeeBasic),
         isCommon: true,
     },

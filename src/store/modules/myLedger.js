@@ -50,16 +50,26 @@ const myLedgerSlice = createSlice({
       }
 
       // 如果有模板字段，初始化所有字段为空字符串
+      const extraShiftNames = []
       if (state.templateFields && state.templateFields.fields) {
         state.templateFields.fields.forEach((field) => {
           if (field.shift) {
-            // shift 字段需要初始化两个子字段
-            newDetail[`${field.name}`] = ''
-            // newDetail[`${field.name}2`] = ''
+            if (field.name.startsWith('extra:')) {
+              extraShiftNames.push(field.name.replace('extra:', ''))
+            } else {
+              newDetail[`${field.name}`] = ''
+            }
           } else {
             newDetail[field.name] = ''
           }
         })
+      }
+
+      // 初始化 extraShiftJson
+      if (extraShiftNames.length > 0) {
+        const extraObj = {}
+        extraShiftNames.forEach((name) => { extraObj[name] = '' })
+        newDetail.extraShiftJson = JSON.stringify(extraObj)
       }
 
       state.details.push(newDetail)

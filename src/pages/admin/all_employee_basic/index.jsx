@@ -55,12 +55,7 @@ const AllEmployeeBasic = () => {
     {
       title: '部门名称',
       dataIndex: 'orgUnitName',
-      width: 160,
-      render: (text, record) => (
-        <a onClick={() => navigate(`/admin-employee-basic?orgUnitId=${record.orgUnitId}`)}>
-          {text}
-        </a>
-      ),
+      width: 160
     },
     { title: '现员人数', dataIndex: 'employeeCount', width: 100, align: 'center' },
     {
