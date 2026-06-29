@@ -236,11 +236,12 @@ export function getLedgerTemplate(orgUnitId) {
 }
 
 //按模板导出台账excel
-export function exportLedgerExcelByTemplate(id) {
+export function exportLedgerExcelByTemplate(orgUnitId) {
   return request({
-    url: `/ledger/${id}/template-excel`,
+    url: '/ledger/template-excel',
     method: 'get',
-    responseType: 'blob'
+    responseType: 'blob',
+    params: { orgUnitId }
   })
 }
 

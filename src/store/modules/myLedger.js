@@ -14,7 +14,7 @@ const loadState = () => {
   }
 }
 
-const initialState = loadState() || {
+const getDefaultState = () => ({
   status: 'DRAFT',
   orgUnitName: '',
   ledgerMonth: dayjs().format('YYYY-MM'),
@@ -24,7 +24,9 @@ const initialState = loadState() || {
   details: [],
   remark: '',
   templateFields: [],
-}
+})
+
+const initialState = loadState() || getDefaultState()
 
 const myLedgerSlice = createSlice({
   name: 'myLedger',
@@ -86,8 +88,14 @@ const myLedgerSlice = createSlice({
     setLedgerMeta(state, action) {
       Object.assign(state, action.payload)
     },
+    resetMyLedger() {
+      return getDefaultState()
+    },
+  },
+  extraReducers: (builder) => {
+    builder.addCase('user/logout', () => getDefaultState())
   },
 })
 
-export const { setDetails, updateDetail, addDetail, removeDetail, setRemark, setTemplateFields, setLedgerMeta } = myLedgerSlice.actions
+export const { setDetails, updateDetail, addDetail, removeDetail, setRemark, setTemplateFields, setLedgerMeta, resetMyLedger } = myLedgerSlice.actions
 export default myLedgerSlice.reducer

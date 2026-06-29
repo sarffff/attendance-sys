@@ -92,16 +92,6 @@ const MyLedger = () => {
 
   const [cfg, setCfg] = useState(DEFAULT_CONFIG);
 
-  const TEAM_KEYWORDS = ["甲班", "乙班", "丙班", "丁班", "预备"];
-
-  const SHIFT_FIELDS = {
-    甲班: ["jiaBan1", "jiaBan2"],
-    乙班: ["yiBan1", "yiBan2"],
-    丙班: ["bingBan1", "bingBan2"],
-    丁班: ["dingBan1", "dingBan2"],
-    预备: ["yuBei1", "yuBei2", "yuBei3", "yuBei4"],
-  };
-
   const editable = useMemo(
     () => ledger && ["DRAFT", "RETURNED"].includes(ledger.status),
     [ledger],
@@ -257,33 +247,6 @@ const MyLedger = () => {
     }
   };
 
-  // 上传台账模板
-  // const handleUploadTemplate = async (file) => {
-  //   const isExcel = file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-  //     file.type === 'application/vnd.ms-excel' ||
-  //     file.name.endsWith('.xlsx') ||
-  //     file.name.endsWith('.xls');
-
-  //   if (!isExcel) {
-  //     message.error('请上传Excel文件（.xlsx或.xls格式）');
-  //     return false;
-  //   }
-
-  //   try {
-  //     setUploading(true);
-  //     const formData = new FormData();
-  //     formData.append('file', file);
-  //     await uploadLedgerTemplate(user.orgUnitId, formData);
-  //     message.success('台账模板上传成功');
-  //   } catch (error) {
-  //     message.error('上传台账模板失败');
-  //     console.error(error);
-  //   } finally {
-  //     setUploading(false);
-  //   }
-  //   return false; // 阻止antd Upload组件默认上传
-  // };
-
   // 导出台账
   const handleExport = async () => {
     if (!ledger) {
@@ -365,24 +328,41 @@ const MyLedger = () => {
         }
       });
 
-      console.log(fieldNames);
+      console.log(dataRows);
 
       // 按索引填充数据
       const parsedDetails = dataRows.map((row, rowIndex) => {
         const detail = {
           id: rowIndex + 1,
           sortNo: rowIndex + 1,
+          extraShiftJson: JSON.stringify({"行配半班":"","二调半":"","五调半":"","七调半":"","半调":""}),
         };
 
         // 按索引将 Excel 数据填充到对应的字段
         fieldNames.forEach((fieldName, colIndex) => {
           const value =
             row[colIndex] !== undefined ? String(row[colIndex] || "") : "";
-          detail[fieldName] = value;
+
+          // 处理带 extra: 前缀的字段
+          if (fieldName.startsWith("extra:")) {
+            const shiftName = fieldName.replace("extra:", "");
+            let extraObj = {};
+            try {
+              extraObj = JSON.parse(detail.extraShiftJson || "{}");
+            } catch {
+              extraObj = {};
+            }
+            extraObj[shiftName] = value;
+            detail.extraShiftJson = JSON.stringify(extraObj);
+          } else {
+            detail[fieldName] = value;
+          }
         });
 
         return detail;
       });
+
+      console.log("Parsed Details:", parsedDetails);
 
       // 过滤掉空行
       const filteredDetails = parsedDetails.filter((detail) => {
