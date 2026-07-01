@@ -113,7 +113,9 @@ const HrAllLedger = () => {
     const loadLeaders = async () => {
       try {
         const data = await getLeaders();
-        setLeaders(Array.isArray(data) ? data : []);
+        // 过滤掉ID为7的领导
+        const filteredLeaders = data.filter((item) => item.userId != 7);
+        setLeaders(filteredLeaders);
       } catch (error) {
         console.error("获取领导列表失败:", error);
       }
@@ -512,7 +514,7 @@ const HrAllLedger = () => {
             loading={accessLoading}
             onClick={() => handleSetAccess(false)}
           >
-            取消所有授权
+            取消授权
           </Button>,
           <Button
             key="confirm"
@@ -558,8 +560,8 @@ const HrAllLedger = () => {
             >
               {accessLeaders.map((leader) => (
                 <Checkbox
-                  key={leader.id || leader.userId}
-                  value={leader.id || leader.userId}
+                  key={leader.userId || leader.id}
+                  value={leader.userId || leader.id}
                 >
                   <Space>
                     <Avatar size="small" icon={<UserOutlined />} />

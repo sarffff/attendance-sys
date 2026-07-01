@@ -335,7 +335,13 @@ const MyLedger = () => {
         const detail = {
           id: rowIndex + 1,
           sortNo: rowIndex + 1,
-          extraShiftJson: JSON.stringify({"行配半班":"","二调半":"","五调半":"","七调半":"","半调":""}),
+          extraShiftJson: JSON.stringify({
+            行配半班: "",
+            二调半: "",
+            五调半: "",
+            七调半: "",
+            半调: "",
+          }),
         };
 
         // 按索引将 Excel 数据填充到对应的字段
@@ -362,7 +368,7 @@ const MyLedger = () => {
         return detail;
       });
 
-      console.log("Parsed Details:", parsedDetails);
+      // console.log("Parsed Details:", parsedDetails);
 
       // 过滤掉空行
       const filteredDetails = parsedDetails.filter((detail) => {

@@ -51,13 +51,21 @@ const AppLayout = () => {
   useEffect(() => {
     const loadPageAccess = async () => {
       try {
+        const userId = user?.userId || user?.id;
+
+        // userId 为 6 或 7 时直接拥有全部权限
+        if (userId === 6 || userId === 7) {
+          setHasLedgerAccess(true);
+          setHasEmployeeAccess(true);
+          return;
+        }
+
         const [ledgerAccess, employeeAccess] = await Promise.all([
           getLeaderLedgerPageAccess(),
           getLeaderEmployeePageAccess(),
         ]);
 
         // 检查当前用户是否在授权列表中
-        const userId = user?.userId || user?.id;
         if (Array.isArray(ledgerAccess)) {
           setHasLedgerAccess(
             ledgerAccess.some((item) => (item.userId || item.id) === userId),

@@ -331,14 +331,6 @@ export function getLeaderLedgerPageAccess() {
   })
 }
 
-//获取当前用户可访问的动态页面列表
-// export function getUserAccessiblePages() {
-//   return request({
-//     url: '/ledger/user/accessible-pages',
-//     method: 'get'
-//   })
-// }
-
 //获取领导可查看所有现员数据
 export function getLeaderAllEmployeeBasic() {
   return request({
